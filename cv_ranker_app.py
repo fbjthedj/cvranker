@@ -25,15 +25,22 @@ def calculate_similarity(cv_text, keywords):
     keyword_count = sum(1 for keyword in keywords if keyword.lower() in cv_words)
     return keyword_count / len(keywords) if keywords else 0
 
+def calculate_keyword_frequency(cv_text, keywords):
+    cv_words = cv_text.split()
+    keyword_freq = sum(cv_words.count(keyword.lower()) for keyword in keywords)
+    return keyword_freq
+
 @st.cache_data
 def process_cv(file, keywords):
     try:
         text = extract_text_from_pdf(file)
         processed_text = preprocess_text(text)
         similarity_score = calculate_similarity(processed_text, keywords)
+        keyword_frequency = calculate_keyword_frequency(processed_text, keywords)
         return {
             "Filename": file.name,
             "Similarity Score": similarity_score,
+            "Keyword Frequency": keyword_frequency,
             "Full Text": text
         }
     except Exception as e:
@@ -151,7 +158,7 @@ def main():
         3. Upload PDF CV files using the file uploader.
         4. Click the "Process and Rank CVs" button to analyze the uploaded files.
         5. Adjust the similarity score threshold using the slider to filter top candidates.
-        6. Review the ranked results, selected candidates, and keyword frequency chart.
+        6. Review the ranked results, selected candidates, keyword frequency, and similarity scores.
         7. Expand individual CV sections to view extracted text from each document.
         """)
 
@@ -211,8 +218,8 @@ def main():
 
             # Display the DataFrame with highlighting
             st.dataframe(
-                df[["Filename", "Similarity Score"]]
-                .style.format({"Similarity Score": "{:.2%}"})
+                df[["Filename", "Similarity Score", "Keyword Frequency"]]
+                .style.format({"Similarity Score": "{:.2%}", "Keyword Frequency": "{:,d}"})
                 .apply(highlight_selected, axis=1)
             )
 
@@ -221,7 +228,7 @@ def main():
             if not selected_candidates.empty:
                 st.success(f"Selected Candidates (Similarity Score ≥ {threshold}%):")
                 for _, candidate in selected_candidates.iterrows():
-                    st.markdown(f"- **{candidate['Filename']}** (Score: {candidate['Similarity Score']:.2%})")
+                    st.markdown(f"- **{candidate['Filename']}** (Score: {candidate['Similarity Score']:.2%}, Keyword Frequency: {candidate['Keyword Frequency']})")
             else:
                 st.warning(f"No candidates meet the {threshold}% similarity threshold.")
 
