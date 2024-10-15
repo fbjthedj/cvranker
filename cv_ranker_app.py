@@ -244,11 +244,11 @@ def main():
             else:
                 st.warning(f"No candidates meet both the {similarity_threshold}% similarity threshold and the keyword frequency threshold of {frequency_threshold}.")
 
-            st.header("Keyword Frequency")
-            all_text = " ".join(r["Full Text"] for r in successful_results)
-            word_freq = Counter(preprocess_text(all_text).split())
-            keyword_freq = {word: freq for word, freq in word_freq.items() if word in keywords}
-            st.bar_chart(keyword_freq)
+            #st.header("Keyword Frequency")
+            #all_text = " ".join(r["Full Text"] for r in successful_results)
+            #word_freq = Counter(preprocess_text(all_text).split())
+            #keyword_freq = {word: freq for word, freq in word_freq.items() if word in keywords}
+            #st.bar_chart(keyword_freq)
 
             st.header("Extracted Text from CVs")
             for i, result in enumerate(successful_results):
