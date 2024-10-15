@@ -132,16 +132,10 @@ def main():
         opacity: 1;
     }
     .footer {
-        position: fixed;
-        left: 0;
-        bottom: 0;
-        width: 100%;
-        background-color: #f0f0f0;
-        color: #333;
+        margin-top: 50px;
         text-align: center;
-        padding: 10px 0;
-        font-size: 14px;
-        font-family: 'Inter', sans-serif;
+        font-size: 12px;
+        color: #888888;
     }
     </style>
     """, unsafe_allow_html=True)
