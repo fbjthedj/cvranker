@@ -1,20 +1,20 @@
 import streamlit as st
 import pandas as pd
 import re
-from io import StringIO
+from io import BytesIO
 from collections import Counter
-from pdfminer.high_level import extract_text_to_fp
-from pdfminer.layout import LAParams
+import PyPDF2
 import concurrent.futures
 
 # Set page config at the very beginning of the script
 st.set_page_config(layout="wide", page_title="Aceli CV Parser and Ranker", page_icon="🌍")
 
 def extract_text_from_pdf(file):
-    output_string = StringIO()
-    laparams = LAParams()
-    extract_text_to_fp(file, output_string, laparams=laparams)
-    return output_string.getvalue()
+    pdf_reader = PyPDF2.PdfReader(BytesIO(file.read()))
+    text = ""
+    for page in pdf_reader.pages:
+        text += page.extract_text()
+    return text
 
 def preprocess_text(text):
     text = re.sub(r'[^\w\s]', '', text.lower())
