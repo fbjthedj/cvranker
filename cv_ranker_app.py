@@ -157,7 +157,7 @@ def main():
         2. Input relevant keywords separated by commas in the designated field.
         3. Upload PDF CV files using the file uploader.
         4. Click the "Process and Rank CVs" button to analyze the uploaded files.
-        5. Adjust the similarity score threshold using the slider to filter top candidates.
+        5. Adjust the similarity score and keyword frequency thresholds using the sliders to filter top candidates.
         6. Review the ranked results, selected candidates, keyword frequency, and similarity scores.
         7. Expand individual CV sections to view extracted text from each document.
         """)
@@ -203,16 +203,28 @@ def main():
 
             st.header("Ranked CVs")
             
-            # Add a slider for selection threshold with tooltip
-            threshold = st.slider(
-                "Select similarity score threshold (%)", 
-                0, 100, 60,
-                help="Slide to set the minimum similarity score for candidate selection."
-            )
+            col1, col2 = st.columns(2)
             
-            # Function to highlight rows based on threshold
+            with col1:
+                # Add a slider for similarity score threshold with tooltip
+                similarity_threshold = st.slider(
+                    "Select similarity score threshold (%)", 
+                    0, 100, 60,
+                    help="Slide to set the minimum similarity score for candidate selection."
+                )
+            
+            with col2:
+                # Add a slider for keyword frequency threshold with tooltip
+                max_frequency = int(df["Keyword Frequency"].max())
+                frequency_threshold = st.slider(
+                    "Select keyword frequency threshold", 
+                    0, max_frequency, max_frequency // 2,
+                    help="Slide to set the minimum keyword frequency for candidate selection."
+                )
+            
+            # Function to highlight rows based on thresholds
             def highlight_selected(row):
-                if row['Similarity Score'] >= threshold / 100:
+                if row['Similarity Score'] >= similarity_threshold / 100 and row['Keyword Frequency'] >= frequency_threshold:
                     return ['background-color: rgba(30, 136, 229, 0.2); font-weight: bold;'] * len(row)
                 return [''] * len(row)
 
@@ -224,13 +236,13 @@ def main():
             )
 
             # Display selected candidates
-            selected_candidates = df[df['Similarity Score'] >= threshold / 100]
+            selected_candidates = df[(df['Similarity Score'] >= similarity_threshold / 100) & (df['Keyword Frequency'] >= frequency_threshold)]
             if not selected_candidates.empty:
-                st.success(f"Selected Candidates (Similarity Score ≥ {threshold}%):")
+                st.success(f"Selected Candidates (Similarity Score ≥ {similarity_threshold}% and Keyword Frequency ≥ {frequency_threshold}):")
                 for _, candidate in selected_candidates.iterrows():
                     st.markdown(f"- **{candidate['Filename']}** (Score: {candidate['Similarity Score']:.2%}, Keyword Frequency: {candidate['Keyword Frequency']})")
             else:
-                st.warning(f"No candidates meet the {threshold}% similarity threshold.")
+                st.warning(f"No candidates meet both the {similarity_threshold}% similarity threshold and the keyword frequency threshold of {frequency_threshold}.")
 
             st.header("Keyword Frequency")
             all_text = " ".join(r["Full Text"] for r in successful_results)
