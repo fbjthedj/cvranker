@@ -60,8 +60,8 @@ def process_cv(file, keywords):
         }
 
 def main():
-    # Custom CSS for improved UI with Inter font
-st.markdown("""
+    # Custom CSS for improved UI with Inter font and mobile responsiveness
+    st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&display=swap');
     
@@ -71,7 +71,7 @@ st.markdown("""
         color: #333333;
     }
     .main {
-        padding: 2rem;
+        padding: 1rem;
     }
     .stButton > button {
         background-color: white;
@@ -81,6 +81,8 @@ st.markdown("""
         padding: 0.5rem 1rem;
         border-radius: 4px;
         transition: all 0.3s ease;
+        width: 100%;
+        margin-top: 1rem;
     }
     .stButton > button:hover {
         background-color: #E3F2FD;
@@ -100,28 +102,36 @@ st.markdown("""
         color: black !important;
         font-family: 'Inter', sans-serif;
     }
-    h1, h2, h3 {
+    h1 {
         color: #1E88E5;
         font-family: 'Inter', sans-serif;
+        font-size: 1.8rem;
+    }
+    h2, h3 {
+        color: #1E88E5;
+        font-family: 'Inter', sans-serif;
+        font-size: 1.2rem;
     }
     .card {
         background-color: white;
         border-radius: 8px;
         box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
     }
     .stDataFrame {
         border: none;
         box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        overflow-x: auto;
     }
     .stDataFrame th {
         background-color: #1E88E5;
         color: white;
     }
     .dataframe {
-        font-size: 14px;
+        font-size: 12px;
         font-family: 'Inter', sans-serif;
+        width: 100%;
     }
     .dataframe tbody tr:nth-child(even) {
         background-color: #f0f0f0;
@@ -155,14 +165,32 @@ st.markdown("""
         opacity: 1;
     }
     .footer {
-        margin-top: 50px;
+        margin-top: 2rem;
         text-align: center;
-        font-size: 12px;
+        font-size: 0.8rem;
         color: #888888;
     }
     .highlight {
         background-color: yellow;
         font-weight: bold;
+    }
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+        .main {
+            padding: 0.5rem;
+        }
+        h1 {
+            font-size: 1.5rem;
+        }
+        h2, h3 {
+            font-size: 1rem;
+        }
+        .stDataFrame {
+            font-size: 10px;
+        }
+        .dataframe {
+            font-size: 10px;
+        }
     }
     </style>
     """, unsafe_allow_html=True)
@@ -223,24 +251,19 @@ st.markdown("""
 
             st.header("Ranked CVs")
             
-            col1, col2 = st.columns(2)
+            # Add sliders for thresholds
+            similarity_threshold = st.slider(
+                "Select similarity score threshold (%)", 
+                0, 100, 60,
+                help="Slide to set the minimum similarity score for candidate selection."
+            )
             
-            with col1:
-                # Add a slider for similarity score threshold with tooltip
-                similarity_threshold = st.slider(
-                    "Select similarity score threshold (%)", 
-                    0, 100, 60,
-                    help="Slide to set the minimum similarity score for candidate selection."
-                )
-            
-            with col2:
-                # Add a slider for keyword frequency threshold with tooltip
-                max_frequency = int(df["Keyword Frequency"].max())
-                frequency_threshold = st.slider(
-                    "Select keyword frequency threshold", 
-                    0, max_frequency, max_frequency // 2,
-                    help="Slide to set the minimum keyword frequency for candidate selection."
-                )
+            max_frequency = int(df["Keyword Frequency"].max())
+            frequency_threshold = st.slider(
+                "Select keyword frequency threshold", 
+                0, max_frequency, max_frequency // 2,
+                help="Slide to set the minimum keyword frequency for candidate selection."
+            )
             
             # Function to highlight rows based on thresholds
             def highlight_selected(row):
@@ -264,11 +287,11 @@ st.markdown("""
             else:
                 st.warning(f"No candidates meet both the {similarity_threshold}% similarity threshold and the keyword frequency threshold of {frequency_threshold}.")
 
-            # st.header("Keyword Frequency")
-            # all_text = " ".join(r["Full Text"] for r in successful_results)
-            # word_freq = Counter(preprocess_text(all_text).split())
-            # keyword_freq = {word: freq for word, freq in word_freq.items() if word in keywords}
-            # st.bar_chart(keyword_freq)
+            st.header("Keyword Frequency")
+            all_text = " ".join(r["Full Text"] for r in successful_results)
+            word_freq = Counter(preprocess_text(all_text).split())
+            keyword_freq = {word: freq for word, freq in word_freq.items() if word in keywords}
+            st.bar_chart(keyword_freq)
 
             st.header("Relevant Sentences from CVs")
             for i, result in enumerate(successful_results):
