@@ -10,108 +10,6 @@ import concurrent.futures
 # Set page config at the very beginning of the script
 st.set_page_config(layout="wide", page_title="Aceli CV Parser and Ranker", page_icon="🌍")
 
-def extract_text_from_pdf(file):
-    output_string = StringIO()
-    laparams = LAParams()
-    extract_text_to_fp(file, output_string, laparams=laparams)
-    return output_string.getvalue()
-
-def preprocess_text(text):
-    text = re.sub(r'[^\w\s]', '', text.lower())
-    return text
-
-def calculate_similarity(cv_text, keywords):
-    cv_words = set(cv_text.split())
-    keyword_count = sum(1 for keyword in keywords if keyword.lower() in cv_words)
-    return keyword_count / len(keywords) if keywords else 0
-
-def calculate_keyword_frequency(cv_text, keywords):
-    cv_words = cv_text.split()
-    keyword_freq = sum(cv_words.count(keyword.lower()) for keyword in keywords)
-    return keyword_freq
-
-def extract_relevant_sentences(text, keywords):
-    sentences = re.split(r'(?<=[.!?])\s+', text)
-    relevant_sentences = []
-    for sentence in sentences:
-        if any(keyword.lower() in sentence.lower() for keyword in keywords):
-            relevant_sentences.append(sentence.strip())
-    return relevant_sentences
-
-@st.cache_data
-def process_cv(file, keywords):
-    try:
-        text = extract_text_from_pdf(file)
-        processed_text = preprocess_text(text)
-        similarity_score = calculate_similarity(processed_text, keywords)
-        keyword_frequency = calculate_keyword_frequency(processed_text, keywords)
-        relevant_sentences = extract_relevant_sentences(text, keywords)
-        return {
-            "Filename": file.name,
-            "Similarity Score": similarity_score,
-            "Keyword Frequency": keyword_frequency,
-            "Relevant Sentences": relevant_sentences,
-            "Full Text": text
-        }
-    except Exception as e:
-        return {
-            "Filename": file.name,
-            "Error": str(e)
-        }
-
-def main():
-    # Custom CSS for improved UI with Inter font and mobile responsiveness
-    st.markdown("""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&display=swap');
-    
-    :root {
-        --app-blue: #1E88E5;
-        --app-blue-light: #64B5F6;
-    }
-    
-    body {
-        font-family: 'Inter', sans-serif;
-        background-color: #F5F5F5;
-        color: #333333;
-    }
-    .main {
-        padding: 1rem;
-    }
-    .stButton > button {
-        background-color: var(--app-blue);
-        color: white;
-        font-weight: 500;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 4px;
-        transition: all 0.3s ease;
-        width: 100%;
-        margin-top: 1rem;
-    }
-    .stButton > button:hover {
-        background-color: var(--app-blue-light);
-        color: white;
-    }
-    .stButton > button:active, .stButton > button:focus {
-        background-color: var(--app-blue) !important;
-        color: white !important;
-        box-shadow: none !important;
-    }
-    .stTextInput > div > div > input, .stTextArea > div > div > textarea {
-        background-color: white;
-        bimport streamlit as st
-import pandas as pd
-import re
-from io import StringIO
-from collections import Counter
-from pdfminer.high_level import extract_text_to_fp
-from pdfminer.layout import LAParams
-import concurrent.futures
-
-# Set page config at the very beginning of the script
-st.set_page_config(layout="wide", page_title="Aceli CV Parser and Ranker", page_icon="🌍")
-
 # ... (previous helper functions remain unchanged)
 
 def main():
@@ -227,6 +125,7 @@ def main():
 
         if st.button("Process and Rank CVs"):
             # ... (processing logic remains unchanged)
+            pass  # Remove this 'pass' and uncomment your actual processing logic
 
     with col2:
         st.image("https://via.placeholder.com/400x300.png?text=Illustration", use_column_width=True)
