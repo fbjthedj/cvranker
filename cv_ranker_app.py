@@ -65,6 +65,11 @@ def main():
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&display=swap');
     
+    :root {
+        --app-blue: #1E88E5;
+        --app-blue-light: #64B5F6;
+    }
+    
     body {
         font-family: 'Inter', sans-serif;
         background-color: #F5F5F5;
@@ -74,10 +79,10 @@ def main():
         padding: 1rem;
     }
     .stButton > button {
-        background-color: white;
-        color: #111111;
+        background-color: var(--app-blue);
+        color: white;
         font-weight: 500;
-        border: 1px solid #111111;
+        border: none;
         padding: 0.5rem 1rem;
         border-radius: 4px;
         transition: all 0.3s ease;
@@ -85,13 +90,12 @@ def main():
         margin-top: 1rem;
     }
     .stButton > button:hover {
-        background-color: #E3F2FD;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        background-color: var(--app-blue-light);
+        color: white;
     }
     .stButton > button:active, .stButton > button:focus {
-        background-color: white !important;
-        color: #111111 !important;
-        border-color: #111111 !important;
+        background-color: var(--app-blue) !important;
+        color: white !important;
         box-shadow: none !important;
     }
     .stTextInput > div > div > input, .stTextArea > div > div > textarea {
@@ -103,12 +107,12 @@ def main():
         font-family: 'Inter', sans-serif;
     }
     h1 {
-        color: #1E88E5;
+        color: var(--app-blue);
         font-family: 'Inter', sans-serif;
         font-size: 1.8rem;
     }
     h2, h3 {
-        color: #1E88E5;
+        color: var(--app-blue);
         font-family: 'Inter', sans-serif;
         font-size: 1.2rem;
     }
@@ -125,7 +129,7 @@ def main():
         overflow-x: auto;
     }
     .stDataFrame th {
-        background-color: #1E88E5;
+        background-color: var(--app-blue);
         color: white;
     }
     .dataframe {
@@ -142,7 +146,7 @@ def main():
     .tooltip {
         position: relative;
         display: inline-block;
-        border-bottom: 1px dotted #1E88E5;
+        border-bottom: 1px dotted var(--app-blue);
     }
     .tooltip .tooltiptext {
         visibility: hidden;
@@ -196,7 +200,7 @@ def main():
     """, unsafe_allow_html=True)
 
     st.title("🌍 Aceli CV Parser and Ranker")
-    st.markdown("### Instructions")
+    st.markdown("### Streamline your recruitment process")
 
     # How to Use guide
     with st.expander("How to Use"):
