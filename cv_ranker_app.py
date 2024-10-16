@@ -269,18 +269,23 @@ def main():
                 help="Slide to set the minimum keyword frequency for candidate selection."
             )
             
-            # Function to highlight rows based on thresholds
-            def highlight_selected(row):
-                if row['Similarity Score'] >= similarity_threshold / 100 and row['Keyword Frequency'] >= frequency_threshold:
-                    return ['background-color: rgba(30, 136, 229, 0.2); font-weight: bold;'] * len(row)
-                return [''] * len(row)
+            # Function to display and highlight DataFrame
+            def display_dataframe(df, similarity_threshold, frequency_threshold):
+                # Function to highlight rows based on thresholds
+                def highlight_selected(row):
+                    if row['Similarity Score'] >= similarity_threshold / 100 and row['Keyword Frequency'] >= frequency_threshold:
+                        return ['background-color: rgba(30, 136, 229, 0.2); font-weight: bold;'] * len(row)
+                    return [''] * len(row)
 
-            # Display the DataFrame with highlighting
-            st.dataframe(
-                df[["Filename", "Similarity Score", "Keyword Frequency"]]
-                .style.format({"Similarity Score": "{:.2%}", "Keyword Frequency": "{:,d}"})
-                .apply(highlight_selected, axis=1)
-            )
+                # Display the DataFrame with highlighting
+                st.dataframe(
+                    df[["Filename", "Similarity Score", "Keyword Frequency"]]
+                    .style.format({"Similarity Score": "{:.2%}", "Keyword Frequency": "{:,d}"})
+                    .apply(highlight_selected, axis=1)
+                )
+
+            # Display DataFrame
+            display_dataframe(df, similarity_threshold, frequency_threshold)
 
             # Display selected candidates
             selected_candidates = df[(df['Similarity Score'] >= similarity_threshold / 100) & (df['Keyword Frequency'] >= frequency_threshold)]
