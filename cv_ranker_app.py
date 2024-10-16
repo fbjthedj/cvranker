@@ -75,9 +75,9 @@ def main():
     }
     .stButton > button {
         background-color: white;
-        color: #1E88E5;
+        color: #111111;
         font-weight: 500;
-        border: 1px solid #1E88E5;
+        border: 1px solid #111111;
         padding: 0.5rem 1rem;
         border-radius: 4px;
         transition: all 0.3s ease;
