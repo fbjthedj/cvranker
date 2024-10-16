@@ -30,6 +30,14 @@ def calculate_keyword_frequency(cv_text, keywords):
     keyword_freq = sum(cv_words.count(keyword.lower()) for keyword in keywords)
     return keyword_freq
 
+def extract_relevant_sentences(text, keywords):
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    relevant_sentences = []
+    for sentence in sentences:
+        if any(keyword.lower() in sentence.lower() for keyword in keywords):
+            relevant_sentences.append(sentence.strip())
+    return relevant_sentences
+
 @st.cache_data
 def process_cv(file, keywords):
     try:
@@ -37,10 +45,12 @@ def process_cv(file, keywords):
         processed_text = preprocess_text(text)
         similarity_score = calculate_similarity(processed_text, keywords)
         keyword_frequency = calculate_keyword_frequency(processed_text, keywords)
+        relevant_sentences = extract_relevant_sentences(text, keywords)
         return {
             "Filename": file.name,
             "Similarity Score": similarity_score,
             "Keyword Frequency": keyword_frequency,
+            "Relevant Sentences": relevant_sentences,
             "Full Text": text
         }
     except Exception as e:
@@ -144,6 +154,10 @@ def main():
         font-size: 12px;
         color: #888888;
     }
+    .highlight {
+        background-color: yellow;
+        font-weight: bold;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -159,7 +173,7 @@ def main():
         4. Click the "Process and Rank CVs" button to analyze the uploaded files.
         5. Adjust the similarity score and keyword frequency thresholds using the sliders to filter top candidates.
         6. Review the ranked results, selected candidates, keyword frequency, and similarity scores.
-        7. Expand individual CV sections to view extracted text from each document.
+        7. Expand individual CV sections to view relevant sentences containing the keywords from each document.
         """)
 
     # Add a line separator after the How to Use section
@@ -244,20 +258,28 @@ def main():
             else:
                 st.warning(f"No candidates meet both the {similarity_threshold}% similarity threshold and the keyword frequency threshold of {frequency_threshold}.")
 
-            #st.header("Keyword Frequency")
-            #all_text = " ".join(r["Full Text"] for r in successful_results)
-            #word_freq = Counter(preprocess_text(all_text).split())
-            #keyword_freq = {word: freq for word, freq in word_freq.items() if word in keywords}
-            #st.bar_chart(keyword_freq)
+            st.header("Keyword Frequency")
+            all_text = " ".join(r["Full Text"] for r in successful_results)
+            word_freq = Counter(preprocess_text(all_text).split())
+            keyword_freq = {word: freq for word, freq in word_freq.items() if word in keywords}
+            st.bar_chart(keyword_freq)
 
-            st.header("Extracted Text from CVs")
+            st.header("Relevant Sentences from CVs")
             for i, result in enumerate(successful_results):
-                with st.expander(f"Show extracted text from {result['Filename']}"):
-                    st.text_area(f"Extracted text (first 1000 characters)", 
-                                 result['Full Text'][:1000], 
-                                 height=200)
-                    if len(result['Full Text']) > 1000:
-                        st.info("Text truncated. Showing first 1000 characters.")
+                with st.expander(f"Show relevant sentences from {result['Filename']}"):
+                    if result['Relevant Sentences']:
+                        for sentence in result['Relevant Sentences']:
+                            highlighted_sentence = sentence
+                            for keyword in keywords:
+                                highlighted_sentence = re.sub(
+                                    f'({re.escape(keyword)})',
+                                    r'<span class="highlight">\1</span>',
+                                    highlighted_sentence,
+                                    flags=re.IGNORECASE
+                                )
+                            st.markdown(f"• {highlighted_sentence}", unsafe_allow_html=True)
+                    else:
+                        st.info("No sentences with keywords found in this CV.")
 
         # Display errors, if any
         if error_results:
