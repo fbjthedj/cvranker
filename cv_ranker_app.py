@@ -200,7 +200,7 @@ def main():
     """, unsafe_allow_html=True)
 
     st.title("🌍 Aceli CV Parser and Ranker")
-    st.markdown("### Streamline your recruitment process")
+    st.markdown("### App Instructions")
 
     # How to Use guide
     with st.expander("How to Use"):
