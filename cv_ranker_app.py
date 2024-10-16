@@ -90,8 +90,8 @@ def main():
     }
     .stButton > button:active, .stButton > button:focus {
         background-color: white !important;
-        color: #1E88E5 !important;
-        border-color: #1E88E5 !important;
+        color: #111111 !important;
+        border-color: #111111 !important;
         box-shadow: none !important;
     }
     .stTextInput > div > div > input, .stTextArea > div > div > textarea {
