@@ -61,7 +61,7 @@ def process_cv(file, keywords):
 
 def main():
     # Custom CSS for improved UI with Inter font
-    st.markdown("""
+st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&display=swap');
     
@@ -74,17 +74,23 @@ def main():
         padding: 2rem;
     }
     .stButton > button {
-        background-color: #1E88E5;
-        color: white;
+        background-color: white;
+        color: #1E88E5;
         font-weight: 500;
-        border: none;
+        border: 1px solid #1E88E5;
         padding: 0.5rem 1rem;
         border-radius: 4px;
         transition: all 0.3s ease;
     }
     .stButton > button:hover {
-        background-color: #1565C0;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        background-color: #E3F2FD;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .stButton > button:active, .stButton > button:focus {
+        background-color: white !important;
+        color: #1E88E5 !important;
+        border-color: #1E88E5 !important;
+        box-shadow: none !important;
     }
     .stTextInput > div > div > input, .stTextArea > div > div > textarea {
         background-color: white;
