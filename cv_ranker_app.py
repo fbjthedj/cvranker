@@ -217,6 +217,12 @@ def main():
     # Add a line separator after the How to Use section
     st.markdown("---")
 
+    # Initialize session state
+    if 'df' not in st.session_state:
+        st.session_state.df = None
+    if 'processed' not in st.session_state:
+        st.session_state.processed = False
+
     # Job Description and Keywords
     st.header("Job Description and Keywords")
     job_description = st.text_area("Enter the job description:", height=150)
@@ -249,83 +255,78 @@ def main():
         error_results = [r for r in results if "Error" in r]
 
         # Create a DataFrame and sort by similarity score
-        df = pd.DataFrame(successful_results)
-        if not df.empty:
-            st.header("Ranked CVs")
-            
-            # Add sliders for thresholds
-            similarity_threshold = st.slider(
-                "Select similarity score threshold (%)", 
-                0, 100, 60,
-                help="Slide to set the minimum similarity score for candidate selection."
-            )
-            
-            max_frequency = int(df["Keyword Frequency"].max())
-            frequency_threshold = st.slider(
-                "Select keyword frequency threshold", 
-                0, max_frequency, max_frequency // 2,
-                help="Slide to set the minimum keyword frequency for candidate selection."
-            )
-            
-            # Function to display and highlight DataFrame
-            def display_ranked_cvs():
-                # Filter the DataFrame based on current thresholds
-                filtered_df = df[(df['Similarity Score'] >= similarity_threshold / 100) & 
-                                 (df['Keyword Frequency'] >= frequency_threshold)]
-                
-                # Sort the filtered DataFrame
-                filtered_df = filtered_df.sort_values("Similarity Score", ascending=False).reset_index(drop=True)
-                
-                # Function to highlight rows
-                def highlight_rows(row):
-                    return ['background-color: rgba(30, 136, 229, 0.2); font-weight: bold;'] * len(row)
-
-                # Display the DataFrame with highlighting
-                st.dataframe(
-                    filtered_df[["Filename", "Similarity Score", "Keyword Frequency"]]
-                    .style.format({"Similarity Score": "{:.2%}", "Keyword Frequency": "{:,d}"})
-                    .apply(highlight_rows, axis=1)
-                )
-
-                # Display selected candidates
-                if not filtered_df.empty:
-                    st.success(f"Selected Candidates (Similarity Score ≥ {similarity_threshold}% and Keyword Frequency ≥ {frequency_threshold}):")
-                    for _, candidate in filtered_df.iterrows():
-                        st.markdown(f"- **{candidate['Filename']}** (Score: {candidate['Similarity Score']:.2%}, Keyword Frequency: {candidate['Keyword Frequency']})")
-                else:
-                    st.warning(f"No candidates meet both the {similarity_threshold}% similarity threshold and the keyword frequency threshold of {frequency_threshold}.")
-
-            # Call the function to display ranked CVs
-            display_ranked_cvs()
-
-            st.header("Keyword Frequency")
-            all_text = " ".join(r["Full Text"] for r in successful_results)
-            word_freq = Counter(preprocess_text(all_text).split())
-            keyword_freq = {word: freq for word, freq in word_freq.items() if word in keywords}
-            st.bar_chart(keyword_freq)
-
-            st.header("Relevant Sentences from CVs")
-            for i, result in enumerate(successful_results):
-                with st.expander(f"Show relevant sentences from {result['Filename']}"):
-                    if result['Relevant Sentences']:
-                        for sentence in result['Relevant Sentences']:
-                            highlighted_sentence = sentence
-                            for keyword in keywords:
-                                highlighted_sentence = re.sub(
-                                    f'({re.escape(keyword)})',
-                                    r'<span class="highlight">\1</span>',
-                                    highlighted_sentence,
-                                    flags=re.IGNORECASE
-                                )
-                            st.markdown(f"• {highlighted_sentence}", unsafe_allow_html=True)
-                    else:
-                        st.info("No sentences with keywords found in this CV.")
+        st.session_state.df = pd.DataFrame(successful_results)
+        st.session_state.processed = True
 
         # Display errors, if any
         if error_results:
             st.header("Errors")
             for result in error_results:
                 st.error(f"Error processing {result['Filename']}: {result['Error']}")
+
+    if st.session_state.processed and st.session_state.df is not None:
+        st.header("Ranked CVs")
+        
+        # Add sliders for thresholds
+        similarity_threshold = st.slider(
+            "Select similarity score threshold (%)", 
+            0, 100, 60,
+            help="Slide to set the minimum similarity score for candidate selection."
+        )
+        
+        max_frequency = int(st.session_state.df["Keyword Frequency"].max())
+        frequency_threshold = st.slider(
+            "Select keyword frequency threshold", 
+            0, max_frequency, max_frequency // 2,
+            help="Slide to set the minimum keyword frequency for candidate selection."
+        )
+        
+        # Filter and display ranked CVs
+        filtered_df = st.session_state.df[
+            (st.session_state.df['Similarity Score'] >= similarity_threshold / 100) & 
+            (st.session_state.df['Keyword Frequency'] >= frequency_threshold)
+        ]
+        filtered_df = filtered_df.sort_values("Similarity Score", ascending=False).reset_index(drop=True)
+        
+        # Display the DataFrame
+        st.dataframe(
+            filtered_df[["Filename", "Similarity Score", "Keyword Frequency"]]
+            .style.format({"Similarity Score": "{:.2%}", "Keyword Frequency": "{:,d}"})
+            .apply(lambda _: ['background-color: rgba(30, 136, 229, 0.2)'] * len(filtered_df.columns), axis=1)
+        )
+
+        # Display selected candidates
+        if not filtered_df.empty:
+            st.success(f"Selected Candidates (Similarity Score ≥ {similarity_threshold}% and Keyword Frequency ≥ {frequency_threshold}):")
+            for _, candidate in filtered_df.iterrows():
+                st.markdown(f"- **{candidate['Filename']}** (Score: {candidate['Similarity Score']:.2%}, Keyword Frequency: {candidate['Keyword Frequency']})")
+        else:
+            st.warning(f"No candidates meet both the {similarity_threshold}% similarity threshold and the keyword frequency threshold of {frequency_threshold}.")
+
+        # Keyword Frequency
+        st.header("Keyword Frequency")
+        all_text = " ".join(r["Full Text"] for _, r in st.session_state.df.iterrows())
+        word_freq = Counter(preprocess_text(all_text).split())
+        keyword_freq = {word: freq for word, freq in word_freq.items() if word in keywords}
+        st.bar_chart(keyword_freq)
+
+        # Relevant Sentences
+        st.header("Relevant Sentences from CVs")
+        for _, result in st.session_state.df.iterrows():
+            with st.expander(f"Show relevant sentences from {result['Filename']}"):
+                if result['Relevant Sentences']:
+                    for sentence in result['Relevant Sentences']:
+                        highlighted_sentence = sentence
+                        for keyword in keywords:
+                            highlighted_sentence = re.sub(
+                                f'({re.escape(keyword)})',
+                                r'<span class="highlight">\1</span>',
+                                highlighted_sentence,
+                                flags=re.IGNORECASE
+                            )
+                        st.markdown(f"• {highlighted_sentence}", unsafe_allow_html=True)
+                else:
+                    st.info("No sentences with keywords found in this CV.")
 
     # Footer
     st.markdown(
