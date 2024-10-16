@@ -251,8 +251,6 @@ def main():
         # Create a DataFrame and sort by similarity score
         df = pd.DataFrame(successful_results)
         if not df.empty:
-            df = df.sort_values("Similarity Score", ascending=False).reset_index(drop=True)
-
             st.header("Ranked CVs")
             
             # Add sliders for thresholds
@@ -270,31 +268,35 @@ def main():
             )
             
             # Function to display and highlight DataFrame
-            def display_dataframe(df, similarity_threshold, frequency_threshold):
-                # Function to highlight rows based on thresholds
-                def highlight_selected(row):
-                    if row['Similarity Score'] >= similarity_threshold / 100 and row['Keyword Frequency'] >= frequency_threshold:
-                        return ['background-color: rgba(30, 136, 229, 0.2); font-weight: bold;'] * len(row)
-                    return [''] * len(row)
+            def display_ranked_cvs():
+                # Filter the DataFrame based on current thresholds
+                filtered_df = df[(df['Similarity Score'] >= similarity_threshold / 100) & 
+                                 (df['Keyword Frequency'] >= frequency_threshold)]
+                
+                # Sort the filtered DataFrame
+                filtered_df = filtered_df.sort_values("Similarity Score", ascending=False).reset_index(drop=True)
+                
+                # Function to highlight rows
+                def highlight_rows(row):
+                    return ['background-color: rgba(30, 136, 229, 0.2); font-weight: bold;'] * len(row)
 
                 # Display the DataFrame with highlighting
                 st.dataframe(
-                    df[["Filename", "Similarity Score", "Keyword Frequency"]]
+                    filtered_df[["Filename", "Similarity Score", "Keyword Frequency"]]
                     .style.format({"Similarity Score": "{:.2%}", "Keyword Frequency": "{:,d}"})
-                    .apply(highlight_selected, axis=1)
+                    .apply(highlight_rows, axis=1)
                 )
 
-            # Display DataFrame
-            display_dataframe(df, similarity_threshold, frequency_threshold)
+                # Display selected candidates
+                if not filtered_df.empty:
+                    st.success(f"Selected Candidates (Similarity Score ≥ {similarity_threshold}% and Keyword Frequency ≥ {frequency_threshold}):")
+                    for _, candidate in filtered_df.iterrows():
+                        st.markdown(f"- **{candidate['Filename']}** (Score: {candidate['Similarity Score']:.2%}, Keyword Frequency: {candidate['Keyword Frequency']})")
+                else:
+                    st.warning(f"No candidates meet both the {similarity_threshold}% similarity threshold and the keyword frequency threshold of {frequency_threshold}.")
 
-            # Display selected candidates
-            selected_candidates = df[(df['Similarity Score'] >= similarity_threshold / 100) & (df['Keyword Frequency'] >= frequency_threshold)]
-            if not selected_candidates.empty:
-                st.success(f"Selected Candidates (Similarity Score ≥ {similarity_threshold}% and Keyword Frequency ≥ {frequency_threshold}):")
-                for _, candidate in selected_candidates.iterrows():
-                    st.markdown(f"- **{candidate['Filename']}** (Score: {candidate['Similarity Score']:.2%}, Keyword Frequency: {candidate['Keyword Frequency']})")
-            else:
-                st.warning(f"No candidates meet both the {similarity_threshold}% similarity threshold and the keyword frequency threshold of {frequency_threshold}.")
+            # Call the function to display ranked CVs
+            display_ranked_cvs()
 
             st.header("Keyword Frequency")
             all_text = " ".join(r["Full Text"] for r in successful_results)
