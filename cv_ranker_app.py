@@ -45,27 +45,15 @@ def extract_relevant_sentences(text, keywords):
             relevant_sentences.append(sentence.strip())
     return relevant_sentences
 
-def phrase_match(text, phrase):
-    return phrase.lower() in text.lower()
-
 @st.cache_data
-def process_cv(file, keywords, job_description, keyword_weights):
+def process_cv(file, keywords, job_description):
     try:
         text = extract_text_from_pdf(file)
         processed_text = preprocess_text(text)
-        
-        # Calculate weighted keyword similarity
-        keyword_similarity = 0
-        for category, words in keywords.items():
-            category_score = sum(phrase_match(text, word) for word in words)
-            keyword_similarity += category_score * keyword_weights[category]
-        
-        keyword_similarity /= sum(len(words) * keyword_weights[cat] for cat, words in keywords.items())
-        
-        keyword_frequency = calculate_keyword_frequency(processed_text, [word for words in keywords.values() for word in words])
+        keyword_similarity = calculate_keyword_similarity(processed_text, keywords)
+        keyword_frequency = calculate_keyword_frequency(processed_text, keywords)
         job_desc_similarity = calculate_job_description_similarity(processed_text, preprocess_text(job_description))
-        relevant_sentences = extract_relevant_sentences(text, [word for words in keywords.values() for word in words])
-        
+        relevant_sentences = extract_relevant_sentences(text, keywords)
         return {
             "Filename": file.name,
             "Keyword Similarity": keyword_similarity,
@@ -108,25 +96,13 @@ def main():
     with st.expander("How to Use"):
         st.markdown("""
         1. Enter the job description in the text area provided.
-        2. Input relevant keywords for each category (Skills, Experience, Character Traits).
-        3. Adjust the weights for each keyword category if desired.
-        4. Upload PDF CV files using the file uploader.
-        5. Click the "Process and Rank CVs" button to analyze the uploaded files.
-        6. Review the initial results.
-        7. Adjust the similarity scores and keyword frequency thresholds if needed.
-        8. Click "Update Rankings" to filter top candidates based on the new thresholds.
-        9. Review the updated results, keyword frequency, and relevant sentences from CVs.
-        """)
-
-    with st.expander("Keyword Formulation Guidance"):
-        st.markdown("""
-        - Skills: Focus on specific technical skills, software proficiencies, or methodologies relevant to the job.
-        - Experience: Include industry-specific terms, job titles, or project types that demonstrate relevant experience.
-        - Character Traits: Use these sparingly and focus on traits that are objectively demonstrable in a CV.
-        - Use precise terms: Instead of "communication", use "written communication" or "verbal presentation".
-        - Consider synonyms: Include alternative terms for key skills or experiences.
-        - Avoid overly generic terms: "teamwork" might be too broad; "cross-functional team leadership" is more specific.
-        - Use multi-word phrases when appropriate to capture more specific concepts.
+        2. Input relevant keywords separated by commas in the designated field.
+        3. Upload PDF CV files using the file uploader.
+        4. Click the "Process and Rank CVs" button to analyze the uploaded files.
+        5. Review the initial results.
+        6. Adjust the similarity scores and keyword frequency thresholds if needed.
+        7. Click "Update Rankings" to filter top candidates based on the new thresholds.
+        8. Review the updated results, keyword frequency, and relevant sentences from CVs.
         """)
 
     st.markdown("---")
@@ -140,15 +116,8 @@ def main():
 
     st.header("Job Description and Keywords")
     job_description = st.text_area("Enter the job description:", height=150)
-    
-    # Keyword input by category
-    keywords = {}
-    keyword_weights = {}
-    
-    for category in ["Skills", "Experience", "Character Traits"]:
-        keywords[category] = st.text_input(f"{category} Keywords (comma-separated):").split(',')
-        keywords[category] = [keyword.strip().lower() for keyword in keywords[category] if keyword.strip()]
-        keyword_weights[category] = st.slider(f"{category} Weight", 0.0, 1.0, 1.0, 0.1)
+    keywords = st.text_input("Enter keywords (comma-separated):")
+    keywords = [keyword.strip().lower() for keyword in keywords.split(',') if keyword.strip()]
 
     st.header("Upload CVs")
     uploaded_files = st.file_uploader("Choose PDF CV files", accept_multiple_files=True, type=['pdf'])
@@ -164,7 +133,7 @@ def main():
         with st.spinner('Processing CVs...'):
             progress_bar = st.progress(0)
             with concurrent.futures.ThreadPoolExecutor() as executor:
-                futures = [executor.submit(process_cv, file, keywords, job_description, keyword_weights) for file in uploaded_files]
+                futures = [executor.submit(process_cv, file, keywords, job_description) for file in uploaded_files]
                 for i, future in enumerate(concurrent.futures.as_completed(futures)):
                     result = future.result()
                     results.append(result)
@@ -207,8 +176,7 @@ def main():
         st.header("Keyword Frequency")
         all_text = " ".join(r["Full Text"] for _, r in st.session_state.df.iterrows())
         word_freq = Counter(preprocess_text(all_text).split())
-        all_keywords = [word for words in keywords.values() for word in words]
-        keyword_freq = {word: freq for word, freq in word_freq.items() if word in all_keywords}
+        keyword_freq = {word: freq for word, freq in word_freq.items() if word in keywords}
         st.bar_chart(keyword_freq)
 
         st.header("Relevant Sentences from CVs")
@@ -218,7 +186,7 @@ def main():
                     if result['Relevant Sentences']:
                         for sentence in result['Relevant Sentences']:
                             highlighted_sentence = sentence
-                            for keyword in all_keywords:
+                            for keyword in keywords:
                                 highlighted_sentence = re.sub(
                                     f'({re.escape(keyword)})',
                                     r'<span style="background-color: yellow; font-weight: bold;">\1</span>',
