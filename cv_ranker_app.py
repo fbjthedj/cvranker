@@ -6,6 +6,8 @@ from collections import Counter
 from pdfminer.high_level import extract_text_to_fp
 from pdfminer.layout import LAParams
 import concurrent.futures
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 # Set page config at the very beginning of the script
 st.set_page_config(layout="wide", page_title="Aceli CV Parser and Ranker", page_icon="🌍")
@@ -20,7 +22,7 @@ def preprocess_text(text):
     text = re.sub(r'[^\w\s]', '', text.lower())
     return text
 
-def calculate_similarity(cv_text, keywords):
+def calculate_keyword_similarity(cv_text, keywords):
     cv_words = set(cv_text.split())
     keyword_count = sum(1 for keyword in keywords if keyword.lower() in cv_words)
     return keyword_count / len(keywords) if keywords else 0
@@ -29,6 +31,11 @@ def calculate_keyword_frequency(cv_text, keywords):
     cv_words = cv_text.split()
     keyword_freq = sum(cv_words.count(keyword.lower()) for keyword in keywords)
     return min(keyword_freq, 100)  # Cap at 100
+
+def calculate_job_description_similarity(cv_text, job_description):
+    vectorizer = TfidfVectorizer()
+    tfidf_matrix = vectorizer.fit_transform([job_description, cv_text])
+    return cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
 
 def extract_relevant_sentences(text, keywords):
     sentences = re.split(r'(?<=[.!?])\s+', text)
@@ -39,17 +46,20 @@ def extract_relevant_sentences(text, keywords):
     return relevant_sentences
 
 @st.cache_data
-def process_cv(file, keywords):
+def process_cv(file, keywords, job_description):
     try:
         text = extract_text_from_pdf(file)
         processed_text = preprocess_text(text)
-        similarity_score = calculate_similarity(processed_text, keywords)
+        keyword_similarity = calculate_keyword_similarity(processed_text, keywords)
         keyword_frequency = calculate_keyword_frequency(processed_text, keywords)
+        job_desc_similarity = calculate_job_description_similarity(processed_text, preprocess_text(job_description))
         relevant_sentences = extract_relevant_sentences(text, keywords)
         return {
             "Filename": file.name,
-            "Similarity Score": similarity_score,
+            "Keyword Similarity": keyword_similarity,
             "Keyword Frequency": keyword_frequency,
+            "Job Description Similarity": job_desc_similarity,
+            "Overall Score": (keyword_similarity + job_desc_similarity) / 2,  # Simple average
             "Relevant Sentences": relevant_sentences,
             "Full Text": text
         }
@@ -59,22 +69,23 @@ def process_cv(file, keywords):
             "Error": str(e)
         }
 
-def display_results(df, similarity_threshold, frequency_threshold):
+def display_results(df, keyword_similarity_threshold, job_desc_similarity_threshold, frequency_threshold):
     filtered_df = df[
-        (df['Similarity Score'] >= similarity_threshold / 100) & 
+        (df['Keyword Similarity'] >= keyword_similarity_threshold / 100) & 
+        (df['Job Description Similarity'] >= job_desc_similarity_threshold / 100) &
         (df['Keyword Frequency'] >= frequency_threshold)
     ]
-    filtered_df = filtered_df.sort_values("Similarity Score", ascending=False).reset_index(drop=True)
+    filtered_df = filtered_df.sort_values("Overall Score", ascending=False).reset_index(drop=True)
     
     st.header("Ranked CVs")
-    st.dataframe(filtered_df[["Filename", "Similarity Score", "Keyword Frequency"]])
+    st.dataframe(filtered_df[["Filename", "Overall Score", "Keyword Similarity", "Job Description Similarity", "Keyword Frequency"]])
 
     if not filtered_df.empty:
-        st.success(f"Selected Candidates (Similarity Score ≥ {similarity_threshold}% and Keyword Frequency ≥ {frequency_threshold}):")
+        st.success(f"Selected Candidates (Keyword Similarity ≥ {keyword_similarity_threshold}%, Job Description Similarity ≥ {job_desc_similarity_threshold}%, and Keyword Frequency ≥ {frequency_threshold}):")
         for _, candidate in filtered_df.iterrows():
-            st.markdown(f"- **{candidate['Filename']}** (Score: {candidate['Similarity Score']:.2%}, Keyword Frequency: {candidate['Keyword Frequency']})")
+            st.markdown(f"- **{candidate['Filename']}** (Overall Score: {candidate['Overall Score']:.2%}, Keyword Similarity: {candidate['Keyword Similarity']:.2%}, Job Description Similarity: {candidate['Job Description Similarity']:.2%}, Keyword Frequency: {candidate['Keyword Frequency']})")
     else:
-        st.warning(f"No candidates meet both the {similarity_threshold}% similarity threshold and the keyword frequency threshold of {frequency_threshold}.")
+        st.warning(f"No candidates meet all the thresholds.")
 
     return filtered_df
 
@@ -89,7 +100,7 @@ def main():
         3. Upload PDF CV files using the file uploader.
         4. Click the "Process and Rank CVs" button to analyze the uploaded files.
         5. Review the initial results.
-        6. Adjust the similarity score and keyword frequency thresholds if needed.
+        6. Adjust the similarity scores and keyword frequency thresholds if needed.
         7. Click "Update Rankings" to filter top candidates based on the new thresholds.
         8. Review the updated results, keyword frequency, and relevant sentences from CVs.
         """)
@@ -120,7 +131,7 @@ def main():
         with st.spinner('Processing CVs...'):
             progress_bar = st.progress(0)
             with concurrent.futures.ThreadPoolExecutor() as executor:
-                futures = [executor.submit(process_cv, file, keywords) for file in uploaded_files]
+                futures = [executor.submit(process_cv, file, keywords, job_description) for file in uploaded_files]
                 for i, future in enumerate(concurrent.futures.as_completed(futures)):
                     result = future.result()
                     results.append(result)
@@ -138,23 +149,27 @@ def main():
                 st.error(f"Error processing {result['Filename']}: {result['Error']}")
 
         # Display initial results
-        initial_similarity_threshold = 60
+        initial_keyword_similarity_threshold = 60
+        initial_job_desc_similarity_threshold = 60
         initial_frequency_threshold = 1
-        filtered_df = display_results(st.session_state.df, initial_similarity_threshold, initial_frequency_threshold)
+        filtered_df = display_results(st.session_state.df, initial_keyword_similarity_threshold, initial_job_desc_similarity_threshold, initial_frequency_threshold)
 
     if st.session_state.processed and st.session_state.df is not None:
         st.header("Adjust Ranking Thresholds")
         
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         with col1:
-            similarity_threshold = st.number_input("Similarity score threshold (%)", 
-                                                   min_value=0, max_value=100, value=60, step=1)
+            keyword_similarity_threshold = st.number_input("Keyword similarity threshold (%)", 
+                                                           min_value=0, max_value=100, value=60, step=1)
         with col2:
+            job_desc_similarity_threshold = st.number_input("Job description similarity threshold (%)", 
+                                                            min_value=0, max_value=100, value=60, step=1)
+        with col3:
             frequency_threshold = st.number_input("Keyword frequency threshold", 
                                                   min_value=0, max_value=100, value=1, step=1)
         
         if st.button("Update Rankings"):
-            filtered_df = display_results(st.session_state.df, similarity_threshold, frequency_threshold)
+            filtered_df = display_results(st.session_state.df, keyword_similarity_threshold, job_desc_similarity_threshold, frequency_threshold)
 
         st.header("Keyword Frequency")
         all_text = " ".join(r["Full Text"] for _, r in st.session_state.df.iterrows())
