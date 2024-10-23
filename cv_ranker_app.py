@@ -84,7 +84,7 @@ def display_results(df, keyword_similarity_threshold, job_desc_similarity_thresh
         for _, candidate in filtered_df.iterrows():
             st.markdown(f"- **{candidate['Filename']}** (Overall Score: {candidate['Overall Score']:.2%}, Keyword Similarity: {candidate['Keyword Similarity']:.2%}, Job Description Similarity: {candidate['Job Description Similarity']:.2%}, Keyword Frequency: {candidate['Keyword Frequency']})")
     else:
-        st.warning(f"No candidates meet all the thresholds.")
+        st.warning(f"No candidates meet all the thresholds. Please adjust the thresholds downwards until a candidate meets the criteria.")
 
     return filtered_df
 
