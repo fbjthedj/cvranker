@@ -6,6 +6,8 @@ from collections import Counter
 from pdfminer.high_level import extract_text_to_fp
 from pdfminer.layout import LAParams
 import concurrent.futures
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 # Set page config at the very beginning of the script
 st.set_page_config(layout="wide", page_title="Aceli CV Parser and Ranker", page_icon="🌍")
@@ -31,10 +33,9 @@ def calculate_keyword_frequency(cv_text, keywords):
     return min(keyword_freq, 100)  # Cap at 100
 
 def calculate_job_description_similarity(cv_text, job_description):
-    cv_words = set(cv_text.split())
-    job_words = set(job_description.split())
-    common_words = cv_words.intersection(job_words)
-    return len(common_words) / len(job_words) if job_words else 0
+    vectorizer = TfidfVectorizer()
+    tfidf_matrix = vectorizer.fit_transform([job_description, cv_text])
+    return cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
 
 def extract_relevant_sentences(text, keywords):
     sentences = re.split(r'(?<=[.!?])\s+', text)
@@ -84,7 +85,7 @@ def display_results(df, keyword_similarity_threshold, job_desc_similarity_thresh
         for _, candidate in filtered_df.iterrows():
             st.markdown(f"- **{candidate['Filename']}** (Overall Score: {candidate['Overall Score']:.2%}, Keyword Similarity: {candidate['Keyword Similarity']:.2%}, Job Description Similarity: {candidate['Job Description Similarity']:.2%}, Keyword Frequency: {candidate['Keyword Frequency']})")
     else:
-        st.warning(f"No candidates meet all the thresholds. Please adjust the thresholds downwards until a candidate meets the criteria.")
+        st.warning(f"No candidates meet all the thresholds.")
 
     return filtered_df
 
@@ -110,6 +111,8 @@ def main():
         st.session_state.df = None
     if 'processed' not in st.session_state:
         st.session_state.processed = False
+    if 'filtered_df' not in st.session_state:
+        st.session_state.filtered_df = None
 
     st.header("Job Description and Keywords")
     job_description = st.text_area("Enter the job description:", height=150)
@@ -151,7 +154,7 @@ def main():
         initial_keyword_similarity_threshold = 60
         initial_job_desc_similarity_threshold = 60
         initial_frequency_threshold = 1
-        filtered_df = display_results(st.session_state.df, initial_keyword_similarity_threshold, initial_job_desc_similarity_threshold, initial_frequency_threshold)
+        st.session_state.filtered_df = display_results(st.session_state.df, initial_keyword_similarity_threshold, initial_job_desc_similarity_threshold, initial_frequency_threshold)
 
     if st.session_state.processed and st.session_state.df is not None:
         st.header("Adjust Ranking Thresholds")
@@ -168,7 +171,7 @@ def main():
                                                   min_value=0, max_value=100, value=1, step=1)
         
         if st.button("Update Rankings"):
-            filtered_df = display_results(st.session_state.df, keyword_similarity_threshold, job_desc_similarity_threshold, frequency_threshold)
+            st.session_state.filtered_df = display_results(st.session_state.df, keyword_similarity_threshold, job_desc_similarity_threshold, frequency_threshold)
 
         st.header("Keyword Frequency")
         all_text = " ".join(r["Full Text"] for _, r in st.session_state.df.iterrows())
@@ -177,21 +180,24 @@ def main():
         st.bar_chart(keyword_freq)
 
         st.header("Relevant Sentences from CVs")
-        for _, result in filtered_df.iterrows():
-            with st.expander(f"Show relevant sentences from {result['Filename']}"):
-                if result['Relevant Sentences']:
-                    for sentence in result['Relevant Sentences']:
-                        highlighted_sentence = sentence
-                        for keyword in keywords:
-                            highlighted_sentence = re.sub(
-                                f'({re.escape(keyword)})',
-                                r'<span style="background-color: yellow; font-weight: bold;">\1</span>',
-                                highlighted_sentence,
-                                flags=re.IGNORECASE
-                            )
-                        st.markdown(f"• {highlighted_sentence}", unsafe_allow_html=True)
-                else:
-                    st.info("No sentences with keywords found in this CV.")
+        if st.session_state.filtered_df is not None and not st.session_state.filtered_df.empty:
+            for _, result in st.session_state.filtered_df.iterrows():
+                with st.expander(f"Show relevant sentences from {result['Filename']}"):
+                    if result['Relevant Sentences']:
+                        for sentence in result['Relevant Sentences']:
+                            highlighted_sentence = sentence
+                            for keyword in keywords:
+                                highlighted_sentence = re.sub(
+                                    f'({re.escape(keyword)})',
+                                    r'<span style="background-color: yellow; font-weight: bold;">\1</span>',
+                                    highlighted_sentence,
+                                    flags=re.IGNORECASE
+                                )
+                            st.markdown(f"• {highlighted_sentence}", unsafe_allow_html=True)
+                    else:
+                        st.info("No sentences with keywords found in this CV.")
+        else:
+            st.info("No CVs match the current thresholds. Try adjusting the thresholds and updating the rankings.")
 
     st.markdown(
         """
