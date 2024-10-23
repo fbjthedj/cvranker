@@ -100,7 +100,7 @@ def main():
 
     with st.expander("How to Use"):
         st.markdown("""
-        1. Input relevant keywords separated by commas in the designated field.
+        1. Input relevant keywords separated by commas in the designated field. Use ChatGPT to extract out 10-15 relevant keywords from the job descriptions.
         2. Upload PDF CV files using the file uploader.
         3. Click the "Process and Rank CVs" button to analyze the uploaded files.
         4. Review the initial results.
