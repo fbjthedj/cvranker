@@ -6,9 +6,29 @@ from collections import Counter
 from pdfminer.high_level import extract_text_to_fp
 from pdfminer.layout import LAParams
 import concurrent.futures
+import yake
 
 # Set page config at the very beginning of the script
 st.set_page_config(layout="wide", page_title="Aceli CV Parser and Ranker", page_icon="🌍")
+
+def extract_keywords_from_job_description(text, num_keywords=15):
+    # Configure YAKE keyword extractor
+    language = "en"
+    max_ngram_size = 3  # Allow up to 3-word phrases
+    deduplication_threshold = 0.9
+    numOfKeywords = num_keywords
+    custom_kw_extractor = yake.KeywordExtractor(
+        lan=language, 
+        n=max_ngram_size, 
+        dedupLim=deduplication_threshold, 
+        top=numOfKeywords, 
+        features=None
+    )
+    
+    # Extract keywords
+    keywords = custom_kw_extractor.extract_keywords(text)
+    # Return just the keywords, not their scores
+    return [keyword[0] for keyword in keywords]
 
 def extract_text_from_pdf(file):
     output_string = StringIO()
@@ -50,7 +70,7 @@ def process_cv(file, keywords):
             "Filename": file.name,
             "Keyword Similarity": keyword_similarity,
             "Keyword Frequency": keyword_frequency,
-            "Overall Score": keyword_similarity,  # Now just using keyword similarity as overall score
+            "Overall Score": keyword_similarity,
             "Relevant Sentences": relevant_sentences,
             "Full Text": text
         }
@@ -100,13 +120,16 @@ def main():
 
     with st.expander("How to Use"):
         st.markdown("""
-        1. Input relevant keywords for the role separated by commas in the designated field. Use ChatGPT to extract out 10-15 relevant keywords from the job description.
-        2. Upload PDF CV files using the file uploader.
-        3. Click the "Process and Rank CVs" button to analyze the uploaded files.
-        4. Review the initial results.
-        5. Adjust the similarity score and keyword frequency thresholds downward if needed.
-        6. Click "Update Rankings" to filter top candidates based on the new thresholds.
-        7. Review the updated results, keyword frequency, and relevant sentences from CVs.
+        1. Either:
+           - Enter a job description and click "Extract Keywords", OR
+           - Manually input keywords separated by commas
+        2. Review and edit the keywords as needed
+        3. Upload PDF CV files using the file uploader
+        4. Click "Process and Rank CVs" to analyze the files
+        5. Review the initial results
+        6. Adjust the thresholds if needed
+        7. Click "Update Rankings" to filter top candidates
+        8. Review the results, keyword frequency, and relevant sentences
         """)
 
     st.markdown("---")
@@ -117,10 +140,39 @@ def main():
         st.session_state.processed = False
     if 'filtered_df' not in st.session_state:
         st.session_state.filtered_df = None
+    if 'extracted_keywords' not in st.session_state:
+        st.session_state.extracted_keywords = None
 
+    # Keyword Input Section
     st.header("Keywords")
-    keywords = st.text_input("Enter keywords (comma-separated):")
-    keywords = [keyword.strip().lower() for keyword in keywords.split(',') if keyword.strip()]
+    keyword_input_method = st.radio(
+        "Choose how to input keywords",
+        ["Extract from Job Description", "Manual Input"]
+    )
+
+    if keyword_input_method == "Extract from Job Description":
+        job_description = st.text_area("Enter the job description:", height=150)
+        if st.button("Extract Keywords"):
+            if job_description:
+                extracted_keywords = extract_keywords_from_job_description(job_description)
+                st.session_state.extracted_keywords = extracted_keywords
+                st.success("Keywords extracted successfully!")
+            else:
+                st.warning("Please enter a job description.")
+
+        # Show and allow editing of extracted keywords
+        if st.session_state.extracted_keywords:
+            st.subheader("Extracted Keywords (edit as needed):")
+            keywords = st.text_area(
+                "Edit Keywords:",
+                value=", ".join(st.session_state.extracted_keywords),
+                height=100,
+                help="Edit the extracted keywords. Keep them comma-separated."
+            )
+            keywords = [keyword.strip().lower() for keyword in keywords.split(',') if keyword.strip()]
+    else:
+        keywords = st.text_input("Enter keywords (comma-separated):")
+        keywords = [keyword.strip().lower() for keyword in keywords.split(',') if keyword.strip()]
 
     st.header("Upload CVs")
     uploaded_files = st.file_uploader("Choose PDF CV files", accept_multiple_files=True, type=['pdf'])
@@ -129,6 +181,9 @@ def main():
     if st.button("Process and Rank CVs"):
         if not uploaded_files:
             st.warning("Please upload some PDF CV files.")
+            return
+        if not keywords:
+            st.warning("Please provide keywords for analysis.")
             return
 
         results = []
