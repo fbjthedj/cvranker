@@ -8,6 +8,144 @@ import concurrent.futures
 import google.generativeai as genai
 from typing import Dict, List
 
+# Custom CSS for Notion-like styling
+def set_custom_style():
+    st.markdown("""
+        <style>
+        /* Main container styling */
+        .main {
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        /* Headers styling */
+        h1 {
+            font-family: 'Inter', sans-serif;
+            font-weight: 700;
+            color: #37352f;
+            margin-bottom: 1.5rem;
+            font-size: 2.5rem !important;
+        }
+        
+        h2, h3 {
+            font-family: 'Inter', sans-serif;
+            color: #37352f;
+            font-weight: 600;
+            margin-top: 2rem !important;
+        }
+        
+        /* Text styling */
+        p, li {
+            font-family: 'Inter', sans-serif;
+            color: #37352f;
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+        
+        /* Card-like containers */
+        .stExpander {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+        
+        /* Button styling */
+        .stButton > button {
+            background-color: #2ea44f;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 0.5rem 1rem;
+            font-weight: 500;
+        }
+        
+        .stButton > button:hover {
+            background-color: #2c974b;
+        }
+        
+        /* Input field styling */
+        .stTextInput > div > div > input,
+        .stTextArea > div > div > textarea {
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+            padding: 0.5rem;
+        }
+        
+        /* Sidebar styling */
+        .css-1d391kg {
+            padding: 2rem 1rem;
+        }
+        
+        /* Progress bar styling */
+        .stProgress > div > div > div {
+            background-color: #2ea44f;
+        }
+        
+        /* Custom cards for results */
+        .result-card {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            margin-bottom: 1rem;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+        
+        /* Status indicators */
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        /* Recommendation colors */
+        .recommend-strong { background-color: #2ea44f; }
+        .recommend-yes { background-color: #79b8ff; }
+        .recommend-maybe { background-color: #ffab70; }
+        .recommend-no { background-color: #f97583; }
+        
+        /* File upload area styling */
+        .uploadedFile {
+            border: 2px dashed #e0e0e0;
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            background-color: #fafafa;
+        }
+        
+        /* Info boxes */
+        .info-box {
+            background-color: #f6f8fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        
+        /* Dataframe styling */
+        .dataframe {
+            border: none !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+        
+        .dataframe th {
+            background-color: #f6f8fa;
+            font-weight: 600;
+        }
+        
+        /* Custom divider */
+        .divider {
+            height: 1px;
+            background-color: #e0e0e0;
+            margin: 2rem 0;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
 def initialize_gemini(api_key: str) -> bool:
     """Initialize Gemini AI with the provided API key"""
     try:
@@ -160,6 +298,7 @@ def analyze_cv_with_ai(cv_text: str, job_description: str) -> Dict:
             "interview_recommendation": "Do Not Recommend",
             "detailed_recommendation": f"Error in AI analysis: {str(e)}"
         }
+
 @st.cache_data
 def process_cv(file, keywords, job_description):
     """Process individual CV file"""
@@ -188,179 +327,211 @@ def process_cv(file, keywords, job_description):
             "Error": str(e)
         }
 
-def display_results(df, match_threshold):
-    """Display analysis results"""
-    # Filter CVs based on the match threshold
-    filtered_df = df[df['Match Percentage'] >= match_threshold / 100].copy()
-    filtered_df['Match Percentage'] = filtered_df['Match Percentage'] * 100  # Convert to percentage for display
-    filtered_df = filtered_df.sort_values(["Match Percentage", "AI Suitability Score"], 
-                                        ascending=[False, False]).reset_index(drop=True)
+def display_enhanced_results(results_df, threshold):
+    if results_df.empty:
+        st.warning("No results to display")
+        return
     
-    st.header("Ranked CVs")
+    # Filter and sort results
+    filtered_df = results_df[results_df['Match Percentage'] >= threshold/100].copy()
+    filtered_df['Match Percentage'] *= 100
+    filtered_df = filtered_df.sort_values(['AI Suitability Score', 'Match Percentage'], 
+                                        ascending=[False, False])
     
-    # Display results
-    if not filtered_df.empty:
-        for _, row in filtered_df.iterrows():
-            # Color code the interview recommendation
-            rec_color = {
-                "Strongly Recommend": "🟢",
-                "Recommend": "🟡",
-                "Consider": "🟠",
-                "Do Not Recommend": "🔴",
-                "Analysis Failed": "⚪"
-            }.get(row['interview_recommendation'], "⚪")
+    if filtered_df.empty:
+        st.warning(f"No candidates meet the {threshold}% threshold")
+        return
+    
+    # Summary Statistics
+    st.markdown("<h3>Summary</h3>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric("Total Candidates", len(filtered_df))
+    with col2:
+        st.metric("Avg Match %", f"{filtered_df['Match Percentage'].mean():.1f}%")
+    with col3:
+        st.metric("Avg AI Score", f"{filtered_df['AI Suitability Score'].mean():.1f}")
+    
+    # Detailed Results
+    st.markdown("<h3>Candidate Analysis</h3>", unsafe_allow_html=True)
+    
+    for _, row in filtered_df.iterrows():
+        with st.expander(f"📄 {row['Filename']}"):
+            col1, col2 = st.columns([2, 1])
             
-            with st.expander(
-                f"{rec_color} {row['Filename']} - Match: {row['Match Percentage']:.1f}% | AI Score: {row['AI Suitability Score']}"
-            ):
-                col1, col2 = st.columns(2)
+            with col1:
+                st.markdown(f"""
+                    <div class='result-card'>
+                        <h4>Match Analysis</h4>
+                        <p>Keyword Match: {row['Match Percentage']:.1f}%</p>
+                        <p>AI Suitability: {row['AI Suitability Score']}</p>
+                        <p>Recommendation: {row['interview_recommendation']}</p>
+                    </div>
+                """, unsafe_allow_html=True)
                 
-                with col1:
-                    st.write("📝 **Matched Keywords:**")
-                    st.write(", ".join(row['Matched Keywords']))
-                    
-                    st.write("💪 **Key Strengths:**")
-                    for strength in row['Key Strengths']:
-                        st.write(f"• {strength}")
-                
-                with col2:
-                    st.write("🎯 **Potential Gaps:**")
-                    for gap in row['Potential Gaps']:
-                        st.write(f"• {gap}")
-                    
-                    st.write("🤖 **Interview Recommendation:**")
-                    st.write(f"**{row['interview_recommendation']}**")
-                    st.write(row['detailed_recommendation'])
-        
-        # Display summary dataframe with interview recommendations
-        summary_df = filtered_df[["Filename", "Match Percentage", "AI Suitability Score", "interview_recommendation"]]
-        summary_df = summary_df.rename(columns={
-            "interview_recommendation": "Interview Recommendation"
-        })
-        st.dataframe(summary_df)
-        
-        # Display interview recommendations summary
-        st.subheader("Interview Recommendations Summary")
-        recommendations = filtered_df['interview_recommendation'].value_counts()
-        st.write("Number of candidates by recommendation:")
-        for rec, count in recommendations.items():
-            st.write(f"- {rec}: {count}")
+                st.markdown(f"""
+                    <div class='result-card'>
+                        <h4>AI Insights</h4>
+                        <p>{row['detailed_recommendation']}</p>
+                    </div>
+                """, unsafe_allow_html=True)
             
-    else:
-        st.warning(f"No CVs meet the minimum match threshold of {match_threshold}%")
-        if not df.empty:
-            st.info(f"Highest match percentage in uploaded CVs: {(df['Match Percentage'].max() * 100):.1f}%")
+            with col2:
+                st.markdown("""
+                    <div class='result-card'>
+                        <h4>Strengths</h4>
+                """, unsafe_allow_html=True)
+                for strength in row['Key Strengths']:
+                    st.markdown(f"• {strength}")
+                st.markdown("</div>", unsafe_allow_html=True)
+                
+                st.markdown("""
+                    <div class='result-card'>
+                        <h4>Areas for Discussion</h4>
+                """, unsafe_allow_html=True)
+                for gap in row['Potential Gaps']:
+                    st.markdown(f"• {gap}")
+                st.markdown("</div>", unsafe_allow_html=True)
+
 def main():
-    st.title("🎯 AI-Powered CV Matcher and Analyzer")
+    set_custom_style()
     
-    # Instructions
-    with st.expander("How to Use"):
-        st.markdown("""
-        1. Enter your Google Gemini API key
-        2. Enter the job description
-        3. Enter your keywords (separated by commas)
-        4. Upload the CVs you want to analyze (PDF format)
-        5. Set your desired match threshold percentage
-        6. Review the results including AI analysis
-        
-        To get a Google Gemini API key:
-        1. Go to https://makersuite.google.com/app/apikey
-        2. Create or select a project
-        3. Generate an API key
-        """)
+    # App Header
+    st.markdown("""
+        <div style='text-align: center; padding: 2rem 0;'>
+            <h1>📄 CV Analysis Assistant</h1>
+            <p style='font-size: 1.2rem; color: #666;'>
+                Powered by AI to help you find the best candidates
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
     
-    # API Key input in sidebar
+    # Sidebar Configuration
     with st.sidebar:
-        st.header("API Configuration")
+        st.markdown("""
+            <div style='padding: 1rem 0;'>
+                <h3 style='margin: 0;'>⚙️ Configuration</h3>
+            </div>
+        """, unsafe_allow_html=True)
+        
         api_key = st.text_input(
-            "Enter your Google Gemini API Key:",
+            "Gemini API Key",
             type="password",
-            help="Get your API key from https://makersuite.google.com/app/apikey"
+            help="Enter your Google Gemini API key"
         )
         
         if api_key:
             if initialize_gemini(api_key):
-                st.success("API key validated successfully!")
+                st.success("✅ API Connected")
             else:
-                st.error("Invalid API key. Please check and try again.")
+                st.error("❌ Invalid API Key")
                 st.stop()
         else:
-            st.warning("Please enter your Google Gemini API key to enable AI analysis.")
+            st.warning("⚠️ API Key Required")
             st.stop()
     
-    # Job Description input
-    job_description = st.text_area(
-        "Enter Job Description:",
-        help="Paste the full job description here for AI analysis",
-        height=200
-    )
+    # Main Content Area
+    tabs = st.tabs(["📝 Input", "🔍 Analysis", "ℹ️ Help"])
     
-    # Keyword input
-    keywords_input = st.text_area(
-        "Enter keywords (separated by commas):", 
-        help="Enter the keywords you want to search for in the CVs"
-    )
+    with tabs[0]:
+        st.markdown("<h3>Job Details</h3>", unsafe_allow_html=True)
+        
+        # Job Description
+        st.markdown("""
+            <div class='info-box'>
+                <p style='margin: 0;'>📋 Enter the job description below</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        job_description = st.text_area(
+            "",
+            height=200,
+            placeholder="Paste the job description here..."
+        )
+        
+        st.markdown("<div class='divider'></div>", unsafe_allow_html=True)
+        
+        # Keywords
+        st.markdown("<h3>Keywords</h3>", unsafe_allow_html=True)
+        keywords_input = st.text_area(
+            "",
+            placeholder="Enter keywords separated by commas...",
+            help="These keywords will be used to match against CVs"
+        )
+        
+        if keywords_input:
+            keywords = [k.strip() for k in keywords_input.split(',') if k.strip()]
+            st.markdown(f"""
+                <div class='info-box'>
+                    <p>🎯 {len(keywords)} keywords identified</p>
+                </div>
+            """, unsafe_allow_html=True)
+        else:
+            keywords = []
+        
+        st.markdown("<div class='divider'></div>", unsafe_allow_html=True)
+        
+        # File Upload
+        st.markdown("<h3>Upload CVs</h3>", unsafe_allow_html=True)
+        uploaded_files = st.file_uploader(
+            "",
+            accept_multiple_files=True,
+            type=['pdf']
+        )
+        
+        if uploaded_files:
+            st.markdown(f"""
+                <div class='info-box'>
+                    <p>📎 {len(uploaded_files)} files uploaded</p>
+                </div>
+            """, unsafe_allow_html=True)
+        
+        # Analysis Settings
+        st.markdown("<h3>Analysis Settings</h3>", unsafe_allow_html=True)
+        match_threshold = st.slider(
+            "Minimum Match Threshold",
+            0, 100, 10,
+            format="%d%%",
+            help="Set the minimum keyword match percentage required"
+        )
     
-    if keywords_input:
-        keywords = [k.strip() for k in keywords_input.split(',') if k.strip()]
-        st.info(f"Number of keywords entered: {len(keywords)}")
-    else:
-        keywords = []
-    
-    # File upload
-    uploaded_files = st.file_uploader(
-        "Upload CVs (PDF format)", 
-        accept_multiple_files=True, 
-        type=['pdf']
-    )
-    
-    if uploaded_files:
-        st.info(f"Number of files uploaded: {len(uploaded_files)}")
-    
-    # Match threshold slider
-    match_threshold = st.slider(
-        "Minimum Keyword Match Threshold (%)", 
-        min_value=0, 
-        max_value=100, 
-        value=10,
-        help="CVs must match at least this percentage of keywords to be included in results"
-    )
-    
-    if st.button("Analyze CVs") and keywords and uploaded_files and job_description:
-        with st.spinner('Analyzing CVs with AI...'):
-            results = []
-            progress_bar = st.progress(0)
+    with tabs[1]:
+        if st.button("Start Analysis", type="primary"):
+            if not all([keywords, uploaded_files, job_description]):
+                st.error("Please fill in all required information first")
+                return
             
-            # Process CVs with concurrent execution
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                futures = [
-                    executor.submit(process_cv, file, keywords, job_description) 
-                    for file in uploaded_files
-                ]
-                for i, future in enumerate(concurrent.futures.as_completed(futures)):
-                    result = future.result()
-                    results.append(result)
-                    progress_bar.progress((i + 1) / len(uploaded_files))
+            with st.spinner('Analyzing CVs...'):
+                # Your existing analysis code here
+                results = process_cvs_with_progress(uploaded_files, keywords, job_description)
+                display_enhanced_results(results, match_threshold)
+    
+    with tabs[2]:
+        st.markdown("""
+            <h3>How to Use This Tool</h3>
+            <div class='info-box'>
+                <ol>
+                    <li>Enter your Gemini API key in the sidebar</li>
+                    <li>Paste the complete job description</li>
+                    <li>Enter relevant keywords for the position</li>
+                    <li>Upload candidate CVs (PDF format)</li>
+                    <li>Set your minimum match threshold</li>
+                    <li>Click "Start Analysis" to begin</li>
+                </ol>
+            </div>
             
-            # Create dataframe and display results
-            df = pd.DataFrame([r for r in results if "Error" not in r])
-            display_results(df, match_threshold)
-            
-            # Display any errors
-            errors = [r for r in results if "Error" in r]
-            if errors:
-                st.error("Errors occurred while processing some files:")
-                for error in errors:
-                    st.error(f"{error['Filename']}: {error['Error']}")
-
-    st.markdown(
-        """
-        <div style="margin-top: 2rem; text-align: center; font-size: 0.8rem; color: #888888;">
-            Designed by Aceli Africa
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+            <h3>About the Analysis</h3>
+            <div class='info-box'>
+                <p>This tool combines keyword matching with AI analysis to:</p>
+                <ul>
+                    <li>Match CV content against your keywords</li>
+                    <li>Evaluate candidate suitability</li>
+                    <li>Identify key strengths and gaps</li>
+                    <li>Provide interview recommendations</li>
+                </ul>
+            </div>
+        """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
