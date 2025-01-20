@@ -299,27 +299,61 @@ def analyze_cv_with_ai(cv_text: str, job_description: str) -> Dict:
             "detailed_recommendation": f"Error in AI analysis: {str(e)}"
         }
 
-@st.cache_data
+def calculate_composite_score(keyword_match_percentage: float, ai_score: int) -> float:
+    """
+    Calculate a composite score based on keyword matches and AI assessment
+    Returns a score between 0 and 100
+    
+    Weights:
+    - AI Assessment: 70%
+    - Keyword Matching: 30%
+    """
+    ai_weight = 0.7
+    keyword_weight = 0.3
+    
+    return (ai_score * ai_weight) + (keyword_match_percentage * 100 * keyword_weight)
+
+def get_recommendation_from_score(composite_score: float) -> str:
+    """
+    Determine recommendation based on composite score
+    """
+    if composite_score >= 80:
+        return "Strongly Recommend"
+    elif composite_score >= 65:
+        return "Recommend"
+    elif composite_score >= 50:
+        return "Consider"
+    else:
+        return "Do Not Recommend"
+
 def process_cv(file, keywords, job_description):
     """Process individual CV file"""
     try:
         text = extract_text_from_pdf(file)
         processed_text = preprocess_text(text)
+        
+        # Get keyword match percentage
         match_percentage = calculate_keyword_similarity(processed_text, keywords)
         
-        # Add AI analysis
+        # Get AI analysis
         ai_analysis = analyze_cv_with_ai(text, job_description)
+        
+        # Calculate composite score
+        composite_score = calculate_composite_score(match_percentage, ai_analysis["suitability_score"])
+        
+        # Get final recommendation based on composite score
+        final_recommendation = get_recommendation_from_score(composite_score)
         
         return {
             "Filename": file.name,
-            "Match Percentage": match_percentage,
-            "Matched Keywords": get_matched_keywords(processed_text, keywords),
-            "AI Suitability Score": ai_analysis["suitability_score"],
+            "Keyword Match": match_percentage * 100,  # Convert to percentage
+            "AI Score": ai_analysis["suitability_score"],
+            "Composite Score": round(composite_score, 1),
+            "Recommendation": final_recommendation,
             "Key Strengths": ai_analysis["strengths"],
             "Potential Gaps": ai_analysis["gaps"],
-            "interview_recommendation": ai_analysis["interview_recommendation"],
-            "detailed_recommendation": ai_analysis["detailed_recommendation"],
-            "Full Text": text
+            "Detailed Analysis": ai_analysis["detailed_recommendation"],
+            "Matched Keywords": get_matched_keywords(processed_text, keywords)
         }
     except Exception as e:
         return {
@@ -350,11 +384,9 @@ def display_enhanced_results(results_df, threshold):
         st.warning("No results to display")
         return
     
-    # Filter and sort results
-    filtered_df = results_df[results_df['Match Percentage'] >= threshold/100].copy()
-    filtered_df['Match Percentage'] *= 100
-    filtered_df = filtered_df.sort_values(['AI Suitability Score', 'Match Percentage'], 
-                                        ascending=[False, False])
+    # Filter based on composite score threshold
+    filtered_df = results_df[results_df['Composite Score'] >= threshold].copy()
+    filtered_df = filtered_df.sort_values('Composite Score', ascending=False)
     
     if filtered_df.empty:
         st.warning(f"No candidates meet the {threshold}% threshold")
@@ -362,43 +394,53 @@ def display_enhanced_results(results_df, threshold):
     
     # Summary Statistics
     st.markdown("<h3>Summary</h3>", unsafe_allow_html=True)
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         st.metric("Total Candidates", len(filtered_df))
     with col2:
-        st.metric("Avg Match %", f"{filtered_df['Match Percentage'].mean():.1f}%")
+        st.metric("Avg Composite Score", f"{filtered_df['Composite Score'].mean():.1f}")
     with col3:
-        st.metric("Avg AI Score", f"{filtered_df['AI Suitability Score'].mean():.1f}")
+        st.metric("Strongly Recommended", len(filtered_df[filtered_df['Recommendation'] == 'Strongly Recommend']))
+    with col4:
+        st.metric("Recommended", len(filtered_df[filtered_df['Recommendation'] == 'Recommend']))
     
     # Detailed Results
     st.markdown("<h3>Candidate Analysis</h3>", unsafe_allow_html=True)
     
     for _, row in filtered_df.iterrows():
-        with st.expander(f"📄 {row['Filename']}"):
+        # Color coding for recommendations
+        recommendation_colors = {
+            "Strongly Recommend": "🟢",
+            "Recommend": "🟡",
+            "Consider": "🟠",
+            "Do Not Recommend": "🔴"
+        }
+        rec_color = recommendation_colors.get(row['Recommendation'], "⚪")
+        
+        with st.expander(f"{rec_color} {row['Filename']} - Composite Score: {row['Composite Score']}"):
             col1, col2 = st.columns([2, 1])
             
             with col1:
                 st.markdown(f"""
                     <div class='result-card'>
-                        <h4>Match Analysis</h4>
-                        <p>Keyword Match: {row['Match Percentage']:.1f}%</p>
-                        <p>AI Suitability: {row['AI Suitability Score']}</p>
-                        <p>Recommendation: {row['interview_recommendation']}</p>
+                        <h4>Overall Assessment</h4>
+                        <p>Composite Score: {row['Composite Score']}</p>
+                        <p>Keyword Match: {row['Keyword Match']:.1f}%</p>
+                        <p>AI Score: {row['AI Score']}</p>
+                        <p><strong>Recommendation: {row['Recommendation']}</strong></p>
                     </div>
-                """, unsafe_allow_html=True)
-                
-                st.markdown(f"""
+                    
                     <div class='result-card'>
-                        <h4>AI Insights</h4>
-                        <p>{row['detailed_recommendation']}</p>
+                        <h4>Detailed Analysis</h4>
+                        <p>{row['Detailed Analysis']}</p>
                     </div>
                 """, unsafe_allow_html=True)
             
             with col2:
                 st.markdown("""
                     <div class='result-card'>
-                        <h4>Strengths</h4>
+                        <h4>Key Strengths</h4>
                 """, unsafe_allow_html=True)
                 for strength in row['Key Strengths']:
                     st.markdown(f"• {strength}")
@@ -410,6 +452,13 @@ def display_enhanced_results(results_df, threshold):
                 """, unsafe_allow_html=True)
                 for gap in row['Potential Gaps']:
                     st.markdown(f"• {gap}")
+                st.markdown("</div>", unsafe_allow_html=True)
+                
+                st.markdown("""
+                    <div class='result-card'>
+                        <h4>Matched Keywords</h4>
+                """, unsafe_allow_html=True)
+                st.write(", ".join(row['Matched Keywords']))
                 st.markdown("</div>", unsafe_allow_html=True)
 
 def main():
@@ -508,10 +557,10 @@ def main():
         # Analysis Settings
         st.markdown("<h3>Analysis Settings</h3>", unsafe_allow_html=True)
         match_threshold = st.slider(
-            "Minimum Match Threshold",
+            "Minimum Composite Score Threshold",
             0, 100, 10,
             format="%d%%",
-            help="Set the minimum keyword match percentage required"
+            help="Set the minimum composite score required"
         )
     
     with tabs[1]:
@@ -534,7 +583,7 @@ def main():
                     <li>Paste the complete job description</li>
                     <li>Enter relevant keywords for the position</li>
                     <li>Upload candidate CVs (PDF format)</li>
-                    <li>Set your minimum match threshold</li>
+                    <li>Set your minimum composite score threshold</li>
                     <li>Click "Start Analysis" to begin</li>
                 </ol>
             </div>
@@ -553,3 +602,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+            
