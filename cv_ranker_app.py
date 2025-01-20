@@ -327,6 +327,24 @@ def process_cv(file, keywords, job_description):
             "Error": str(e)
         }
 
+def process_cvs_with_progress(uploaded_files, keywords, job_description):
+    """Process CVs with a progress bar"""
+    results = []
+    progress_bar = st.progress(0)
+    
+    # Process CVs with concurrent execution
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = [
+            executor.submit(process_cv, file, keywords, job_description) 
+            for file in uploaded_files
+        ]
+        for i, future in enumerate(concurrent.futures.as_completed(futures)):
+            result = future.result()
+            results.append(result)
+            progress_bar.progress((i + 1) / len(uploaded_files))
+    
+    return pd.DataFrame([r for r in results if "Error" not in r])
+
 def display_enhanced_results(results_df, threshold):
     if results_df.empty:
         st.warning("No results to display")
