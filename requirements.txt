@@ -1,6 +1,6 @@
-streamlit
-pandas
-pdfminer.six
-scikit-learn
-yake
-google-generativeai
+streamlit>=1.28.0
+pandas>=2.0.0
+pdfminer.six>=20221105
+google-generativeai>=0.3.0
+python-dotenv>=1.0.0
+plotly>=5.18.0
