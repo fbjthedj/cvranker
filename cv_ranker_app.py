@@ -2,76 +2,184 @@ import streamlit as st
 import pandas as pd
 import re
 from io import StringIO
-from collections import Counter
 from pdfminer.high_level import extract_text_to_fp
 from pdfminer.layout import LAParams
 import concurrent.futures
-import yake
+import google.generativeai as genai
+from typing import Dict, List
 
-# Set page config at the very beginning of the script
-st.set_page_config(layout="wide", page_title="Aceli CV Parser and Ranker", page_icon="🌍")
-
-def extract_keywords_from_job_description(text, num_keywords=15):
-    # Configure YAKE keyword extractor
-    language = "en"
-    max_ngram_size = 3  # Allow up to 3-word phrases
-    deduplication_threshold = 0.9
-    numOfKeywords = num_keywords
-    custom_kw_extractor = yake.KeywordExtractor(
-        lan=language, 
-        n=max_ngram_size, 
-        dedupLim=deduplication_threshold, 
-        top=numOfKeywords, 
-        features=None
-    )
-    
-    # Extract keywords
-    keywords = custom_kw_extractor.extract_keywords(text)
-    # Return just the keywords, not their scores
-    return [keyword[0] for keyword in keywords]
+def initialize_gemini(api_key: str) -> bool:
+    """Initialize Gemini AI with the provided API key"""
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-pro')
+        # Test the API key with a simple prompt
+        response = model.generate_content("Test")
+        return True
+    except Exception as e:
+        st.error(f"Error initializing Gemini AI: {str(e)}")
+        return False
 
 def extract_text_from_pdf(file):
+    """Extract text content from PDF file"""
     output_string = StringIO()
     laparams = LAParams()
     extract_text_to_fp(file, output_string, laparams=laparams)
     return output_string.getvalue()
 
 def preprocess_text(text):
-    text = re.sub(r'[^\w\s]', '', text.lower())
+    """Clean and normalize text"""
+    # Convert to lowercase and remove special characters
+    text = re.sub(r'[^\w\s]', ' ', text.lower())
+    # Remove extra whitespace
+    text = ' '.join(text.split())
     return text
 
 def calculate_keyword_similarity(cv_text, keywords):
-    cv_words = set(cv_text.split())
-    keyword_count = sum(1 for keyword in keywords if keyword.lower() in cv_words)
-    return keyword_count / len(keywords) if keywords else 0
+    """
+    Calculate the percentage of keywords found in the CV text
+    Returns a value between 0 and 1 representing the match percentage
+    """
+    cv_text = cv_text.lower()
+    matches = 0
+    for keyword in keywords:
+        # Check if the keyword or its variations exist in the CV
+        if keyword.lower() in cv_text:
+            matches += 1
+    
+    return matches / len(keywords) if keywords else 0
 
-def calculate_keyword_frequency(cv_text, keywords):
-    cv_words = cv_text.split()
-    keyword_freq = sum(cv_words.count(keyword.lower()) for keyword in keywords)
-    return min(keyword_freq, 100)  # Cap at 100
+def get_matched_keywords(cv_text, keywords):
+    """Return a list of keywords that were found in the CV"""
+    cv_text = cv_text.lower()
+    return [keyword for keyword in keywords if keyword.lower() in cv_text]
 
-def extract_relevant_sentences(text, keywords):
-    sentences = re.split(r'(?<=[.!?])\s+', text)
-    relevant_sentences = []
-    for sentence in sentences:
-        if any(keyword.lower() in sentence.lower() for keyword in keywords):
-            relevant_sentences.append(sentence.strip())
-    return relevant_sentences
+def analyze_cv_with_ai(cv_text: str, job_description: str) -> Dict:
+    """
+    Use Google Gemini to analyze CV suitability for the role
+    """
+    model = genai.GenerativeModel('gemini-pro')
+    prompt = f"""
+    As an expert recruitment AI, analyze this candidate's CV against the job description provided.
+    Focus on determining their suitability for the role and provide a clear interview recommendation.
 
+    You must follow these scoring guidelines:
+    - Suitability Score 80-100: Use "Strongly Recommend"
+    - Suitability Score 60-79: Use "Recommend"
+    - Suitability Score 40-59: Use "Consider"
+    - Suitability Score 0-39: Use "Do Not Recommend"
+
+    Provide your analysis in the following format:
+
+    SUITABILITY_SCORE: [number between 0-100]
+    
+    STRENGTHS:
+    - [strength 1]
+    - [strength 2]
+    - [strength 3]
+    
+    GAPS:
+    - [gap 1]
+    - [gap 2]
+    - [gap 3]
+    
+    INTERVIEW_RECOMMENDATION: [Must match suitability score as per guidelines above]
+    
+    DETAILED_RECOMMENDATION:
+    [2-3 sentence explanation of why you made this interview recommendation, including specific points from their CV]
+
+    Here are the details to analyze:
+
+    JOB DESCRIPTION:
+    {job_description}
+
+    CV CONTENT:
+    {cv_text}
+    """
+    
+    try:
+        response = model.generate_content(prompt)
+        response_text = response.text
+        
+        # Parse the response
+        analysis = {}
+        
+        # Extract and validate suitability score
+        score_match = re.search(r'SUITABILITY_SCORE:\s*(\d+)', response_text)
+        if score_match:
+            score = int(score_match.group(1))
+            # Ensure score is within valid range
+            score = max(0, min(100, score))
+            analysis['suitability_score'] = score
+            
+            # Determine recommendation based on score
+            if score >= 80:
+                expected_recommendation = "Strongly Recommend"
+            elif score >= 60:
+                expected_recommendation = "Recommend"
+            elif score >= 40:
+                expected_recommendation = "Consider"
+            else:
+                expected_recommendation = "Do Not Recommend"
+        else:
+            score = 0
+            expected_recommendation = "Do Not Recommend"
+            analysis['suitability_score'] = score
+        
+        # Extract strengths
+        strengths_section = re.search(r'STRENGTHS:(.*?)(?=GAPS:|$)', response_text, re.DOTALL)
+        strengths = []
+        if strengths_section:
+            strengths = [s.strip('- ').strip() for s in strengths_section.group(1).strip().split('\n') if s.strip('- ').strip()]
+        analysis['strengths'] = strengths[:3]  # Take up to 3 strengths
+        
+        # Extract gaps
+        gaps_section = re.search(r'GAPS:(.*?)(?=INTERVIEW_RECOMMENDATION:|$)', response_text, re.DOTALL)
+        gaps = []
+        if gaps_section:
+            gaps = [g.strip('- ').strip() for g in gaps_section.group(1).strip().split('\n') if g.strip('- ').strip()]
+        analysis['gaps'] = gaps[:3]  # Take up to 3 gaps
+        
+        # Extract interview recommendation and ensure it matches the score
+        interview_rec_match = re.search(r'INTERVIEW_RECOMMENDATION:\s*(.*?)(?=\n|$)', response_text)
+        # Use the expected recommendation based on score
+        analysis['interview_recommendation'] = expected_recommendation
+        
+        # Extract detailed recommendation
+        detailed_rec_section = re.search(r'DETAILED_RECOMMENDATION:(.*?)$', response_text, re.DOTALL)
+        analysis['detailed_recommendation'] = detailed_rec_section.group(1).strip() if detailed_rec_section else ""
+        
+        return analysis
+        
+    except Exception as e:
+        st.error(f"Error in AI analysis: {str(e)}")
+        return {
+            "suitability_score": 0,
+            "strengths": ["AI analysis failed"],
+            "gaps": ["Unable to analyze"],
+            "interview_recommendation": "Do Not Recommend",
+            "detailed_recommendation": f"Error in AI analysis: {str(e)}"
+        }
 @st.cache_data
-def process_cv(file, keywords):
+def process_cv(file, keywords, job_description):
+    """Process individual CV file"""
     try:
         text = extract_text_from_pdf(file)
         processed_text = preprocess_text(text)
-        keyword_similarity = calculate_keyword_similarity(processed_text, keywords)
-        keyword_frequency = calculate_keyword_frequency(processed_text, keywords)
-        relevant_sentences = extract_relevant_sentences(text, keywords)
+        match_percentage = calculate_keyword_similarity(processed_text, keywords)
+        
+        # Add AI analysis
+        ai_analysis = analyze_cv_with_ai(text, job_description)
+        
         return {
             "Filename": file.name,
-            "Keyword Similarity": keyword_similarity,
-            "Keyword Frequency": keyword_frequency,
-            "Overall Score": keyword_similarity,
-            "Relevant Sentences": relevant_sentences,
+            "Match Percentage": match_percentage,
+            "Matched Keywords": get_matched_keywords(processed_text, keywords),
+            "AI Suitability Score": ai_analysis["suitability_score"],
+            "Key Strengths": ai_analysis["strengths"],
+            "Potential Gaps": ai_analysis["gaps"],
+            "interview_recommendation": ai_analysis["interview_recommendation"],
+            "detailed_recommendation": ai_analysis["detailed_recommendation"],
             "Full Text": text
         }
     except Exception as e:
@@ -80,178 +188,170 @@ def process_cv(file, keywords):
             "Error": str(e)
         }
 
-def display_results(df, keyword_similarity_threshold, frequency_threshold):
-    filtered_df = df[
-        (df['Keyword Similarity'] >= keyword_similarity_threshold / 100) & 
-        (df['Keyword Frequency'] >= frequency_threshold)
-    ]
-    filtered_df = filtered_df.sort_values("Overall Score", ascending=False).reset_index(drop=True)
+def display_results(df, match_threshold):
+    """Display analysis results"""
+    # Filter CVs based on the match threshold
+    filtered_df = df[df['Match Percentage'] >= match_threshold / 100].copy()
+    filtered_df['Match Percentage'] = filtered_df['Match Percentage'] * 100  # Convert to percentage for display
+    filtered_df = filtered_df.sort_values(["Match Percentage", "AI Suitability Score"], 
+                                        ascending=[False, False]).reset_index(drop=True)
     
     st.header("Ranked CVs")
-    st.dataframe(filtered_df[["Filename", "Overall Score", "Keyword Similarity", "Keyword Frequency"]])
-
+    
+    # Display results
     if not filtered_df.empty:
-        st.success(f"Selected Candidates (Keyword Similarity ≥ {keyword_similarity_threshold}% and Keyword Frequency ≥ {frequency_threshold}):")
-        for _, candidate in filtered_df.iterrows():
-            st.markdown(f"- **{candidate['Filename']}** (Score: {candidate['Overall Score']:.2%}, Keyword Frequency: {candidate['Keyword Frequency']})")
+        for _, row in filtered_df.iterrows():
+            # Color code the interview recommendation
+            rec_color = {
+                "Strongly Recommend": "🟢",
+                "Recommend": "🟡",
+                "Consider": "🟠",
+                "Do Not Recommend": "🔴",
+                "Analysis Failed": "⚪"
+            }.get(row['interview_recommendation'], "⚪")
+            
+            with st.expander(
+                f"{rec_color} {row['Filename']} - Match: {row['Match Percentage']:.1f}% | AI Score: {row['AI Suitability Score']}"
+            ):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.write("📝 **Matched Keywords:**")
+                    st.write(", ".join(row['Matched Keywords']))
+                    
+                    st.write("💪 **Key Strengths:**")
+                    for strength in row['Key Strengths']:
+                        st.write(f"• {strength}")
+                
+                with col2:
+                    st.write("🎯 **Potential Gaps:**")
+                    for gap in row['Potential Gaps']:
+                        st.write(f"• {gap}")
+                    
+                    st.write("🤖 **Interview Recommendation:**")
+                    st.write(f"**{row['interview_recommendation']}**")
+                    st.write(row['detailed_recommendation'])
+        
+        # Display summary dataframe with interview recommendations
+        summary_df = filtered_df[["Filename", "Match Percentage", "AI Suitability Score", "interview_recommendation"]]
+        summary_df = summary_df.rename(columns={
+            "interview_recommendation": "Interview Recommendation"
+        })
+        st.dataframe(summary_df)
+        
+        # Display interview recommendations summary
+        st.subheader("Interview Recommendations Summary")
+        recommendations = filtered_df['interview_recommendation'].value_counts()
+        st.write("Number of candidates by recommendation:")
+        for rec, count in recommendations.items():
+            st.write(f"- {rec}: {count}")
+            
     else:
-        st.warning("No candidates meet all the thresholds. Here are some suggestions:")
-        
-        # Calculate maximum scores to guide users
-        max_keyword_sim = df['Keyword Similarity'].max() * 100
-        max_freq = df['Keyword Frequency'].max()
-        
-        st.markdown(f"""
-        Try the following adjustments:
-        1. **Lower the thresholds**: 
-           - Maximum Keyword Similarity in your candidates: {max_keyword_sim:.1f}%
-           - Maximum Keyword Frequency: {int(max_freq)}
-        2. **Review your keywords**:
-           - Use more specific job-related skills and qualifications
-           - Check for common variations or synonyms of key terms
-           - Ensure keywords match the language used in the industry
-        """)
-
-    return filtered_df
-
+        st.warning(f"No CVs meet the minimum match threshold of {match_threshold}%")
+        if not df.empty:
+            st.info(f"Highest match percentage in uploaded CVs: {(df['Match Percentage'].max() * 100):.1f}%")
 def main():
-    st.title("🌍 Aceli CV Parser and Ranker")
-    st.markdown("### App Instructions")
-
+    st.title("🎯 AI-Powered CV Matcher and Analyzer")
+    
+    # Instructions
     with st.expander("How to Use"):
         st.markdown("""
-        1. Either:
-           - Enter a job description and click "Extract Keywords", OR
-           - Manually input keywords separated by commas
-        2. Review and edit the keywords as needed
-        3. Upload PDF CV files using the file uploader
-        4. Click "Process and Rank CVs" to analyze the files
-        5. Review the initial results
-        6. Adjust the thresholds if needed
-        7. Click "Update Rankings" to filter top candidates
-        8. Review the results, keyword frequency, and relevant sentences
+        1. Enter your Google Gemini API key
+        2. Enter the job description
+        3. Enter your keywords (separated by commas)
+        4. Upload the CVs you want to analyze (PDF format)
+        5. Set your desired match threshold percentage
+        6. Review the results including AI analysis
+        
+        To get a Google Gemini API key:
+        1. Go to https://makersuite.google.com/app/apikey
+        2. Create or select a project
+        3. Generate an API key
         """)
-
-    st.markdown("---")
-
-    if 'df' not in st.session_state:
-        st.session_state.df = None
-    if 'processed' not in st.session_state:
-        st.session_state.processed = False
-    if 'filtered_df' not in st.session_state:
-        st.session_state.filtered_df = None
-    if 'extracted_keywords' not in st.session_state:
-        st.session_state.extracted_keywords = None
-
-    # Keyword Input Section
-    st.header("Keywords")
-    keyword_input_method = st.radio(
-        "Choose how to input keywords",
-        ["Extract from Job Description", "Manual Input"]
-    )
-
-    if keyword_input_method == "Extract from Job Description":
-        job_description = st.text_area("Enter the job description:", height=150)
-        if st.button("Extract Keywords"):
-            if job_description:
-                extracted_keywords = extract_keywords_from_job_description(job_description)
-                st.session_state.extracted_keywords = extracted_keywords
-                st.success("Keywords extracted successfully!")
+    
+    # API Key input in sidebar
+    with st.sidebar:
+        st.header("API Configuration")
+        api_key = st.text_input(
+            "Enter your Google Gemini API Key:",
+            type="password",
+            help="Get your API key from https://makersuite.google.com/app/apikey"
+        )
+        
+        if api_key:
+            if initialize_gemini(api_key):
+                st.success("API key validated successfully!")
             else:
-                st.warning("Please enter a job description.")
-
-        # Show and allow editing of extracted keywords
-        if st.session_state.extracted_keywords:
-            st.subheader("Extracted Keywords (edit as needed):")
-            keywords = st.text_area(
-                "Edit Keywords:",
-                value=", ".join(st.session_state.extracted_keywords),
-                height=100,
-                help="Edit the extracted keywords. Keep them comma-separated."
-            )
-            keywords = [keyword.strip().lower() for keyword in keywords.split(',') if keyword.strip()]
+                st.error("Invalid API key. Please check and try again.")
+                st.stop()
+        else:
+            st.warning("Please enter your Google Gemini API key to enable AI analysis.")
+            st.stop()
+    
+    # Job Description input
+    job_description = st.text_area(
+        "Enter Job Description:",
+        help="Paste the full job description here for AI analysis",
+        height=200
+    )
+    
+    # Keyword input
+    keywords_input = st.text_area(
+        "Enter keywords (separated by commas):", 
+        help="Enter the keywords you want to search for in the CVs"
+    )
+    
+    if keywords_input:
+        keywords = [k.strip() for k in keywords_input.split(',') if k.strip()]
+        st.info(f"Number of keywords entered: {len(keywords)}")
     else:
-        keywords = st.text_input("Enter keywords (comma-separated):")
-        keywords = [keyword.strip().lower() for keyword in keywords.split(',') if keyword.strip()]
-
-    st.header("Upload CVs")
-    uploaded_files = st.file_uploader("Choose PDF CV files", accept_multiple_files=True, type=['pdf'])
-    st.info(f"Number of files uploaded: {len(uploaded_files)}")
-
-    if st.button("Process and Rank CVs"):
-        if not uploaded_files:
-            st.warning("Please upload some PDF CV files.")
-            return
-        if not keywords:
-            st.warning("Please provide keywords for analysis.")
-            return
-
-        results = []
-
-        with st.spinner('Processing CVs...'):
+        keywords = []
+    
+    # File upload
+    uploaded_files = st.file_uploader(
+        "Upload CVs (PDF format)", 
+        accept_multiple_files=True, 
+        type=['pdf']
+    )
+    
+    if uploaded_files:
+        st.info(f"Number of files uploaded: {len(uploaded_files)}")
+    
+    # Match threshold slider
+    match_threshold = st.slider(
+        "Minimum Keyword Match Threshold (%)", 
+        min_value=0, 
+        max_value=100, 
+        value=10,
+        help="CVs must match at least this percentage of keywords to be included in results"
+    )
+    
+    if st.button("Analyze CVs") and keywords and uploaded_files and job_description:
+        with st.spinner('Analyzing CVs with AI...'):
+            results = []
             progress_bar = st.progress(0)
+            
+            # Process CVs with concurrent execution
             with concurrent.futures.ThreadPoolExecutor() as executor:
-                futures = [executor.submit(process_cv, file, keywords) for file in uploaded_files]
+                futures = [
+                    executor.submit(process_cv, file, keywords, job_description) 
+                    for file in uploaded_files
+                ]
                 for i, future in enumerate(concurrent.futures.as_completed(futures)):
                     result = future.result()
                     results.append(result)
                     progress_bar.progress((i + 1) / len(uploaded_files))
-
-        successful_results = [r for r in results if "Error" not in r]
-        error_results = [r for r in results if "Error" in r]
-
-        st.session_state.df = pd.DataFrame(successful_results)
-        st.session_state.processed = True
-
-        if error_results:
-            st.header("Errors")
-            for result in error_results:
-                st.error(f"Error processing {result['Filename']}: {result['Error']}")
-
-        # Display initial results
-        initial_keyword_similarity_threshold = 60
-        initial_frequency_threshold = 1
-        st.session_state.filtered_df = display_results(st.session_state.df, initial_keyword_similarity_threshold, initial_frequency_threshold)
-
-    if st.session_state.processed and st.session_state.df is not None:
-        st.header("Adjust Ranking Thresholds")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            keyword_similarity_threshold = st.number_input("Keyword similarity threshold (%)", 
-                                                           min_value=0, max_value=100, value=60, step=1)
-        with col2:
-            frequency_threshold = st.number_input("Keyword frequency threshold", 
-                                                  min_value=0, max_value=100, value=1, step=1)
-        
-        if st.button("Update Rankings"):
-            st.session_state.filtered_df = display_results(st.session_state.df, keyword_similarity_threshold, frequency_threshold)
-
-        st.header("Keyword Frequency")
-        all_text = " ".join(r["Full Text"] for _, r in st.session_state.df.iterrows())
-        word_freq = Counter(preprocess_text(all_text).split())
-        keyword_freq = {word: freq for word, freq in word_freq.items() if word in keywords}
-        st.bar_chart(keyword_freq)
-
-        st.header("Relevant Sentences from CVs")
-        if st.session_state.filtered_df is not None and not st.session_state.filtered_df.empty:
-            for _, result in st.session_state.filtered_df.iterrows():
-                with st.expander(f"Show relevant sentences from {result['Filename']}"):
-                    if result['Relevant Sentences']:
-                        for sentence in result['Relevant Sentences']:
-                            highlighted_sentence = sentence
-                            for keyword in keywords:
-                                highlighted_sentence = re.sub(
-                                    f'({re.escape(keyword)})',
-                                    r'<span style="background-color: yellow; font-weight: bold;">\1</span>',
-                                    highlighted_sentence,
-                                    flags=re.IGNORECASE
-                                )
-                            st.markdown(f"• {highlighted_sentence}", unsafe_allow_html=True)
-                    else:
-                        st.info("No sentences with keywords found in this CV.")
-        else:
-            st.info("No CVs match the current thresholds. Try adjusting the thresholds and updating the rankings.")
+            
+            # Create dataframe and display results
+            df = pd.DataFrame([r for r in results if "Error" not in r])
+            display_results(df, match_threshold)
+            
+            # Display any errors
+            errors = [r for r in results if "Error" in r]
+            if errors:
+                st.error("Errors occurred while processing some files:")
+                for error in errors:
+                    st.error(f"{error['Filename']}: {error['Error']}")
 
     st.markdown(
         """
