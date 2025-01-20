@@ -420,9 +420,9 @@ def main():
     # App Header
     st.markdown("""
         <div style='text-align: center; padding: 2rem 0;'>
-            <h1>📄 AI CV Analyzer</h1>
+            <h1>🌍 Aceli CV Analyzer Tool</h1>
             <p style='font-size: 1.2rem; color: #666;'>
-                AI-powered CV analysis for candidate evaluation
+                AI-powered CV analysis for candidate interview suitability
             </p>
         </div>
     """, unsafe_allow_html=True)
