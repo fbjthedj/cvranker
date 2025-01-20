@@ -326,34 +326,21 @@ def get_recommendation_from_score(composite_score: float) -> str:
     else:
         return "Do Not Recommend"
 
-def process_cv(file, keywords, job_description):
+def process_cv(file, job_description):
     """Process individual CV file"""
     try:
         text = extract_text_from_pdf(file)
-        processed_text = preprocess_text(text)
-        
-        # Get keyword match percentage
-        match_percentage = calculate_keyword_similarity(processed_text, keywords)
         
         # Get AI analysis
         ai_analysis = analyze_cv_with_ai(text, job_description)
         
-        # Calculate composite score
-        composite_score = calculate_composite_score(match_percentage, ai_analysis["suitability_score"])
-        
-        # Get final recommendation based on composite score
-        final_recommendation = get_recommendation_from_score(composite_score)
-        
         return {
             "Filename": file.name,
-            "Keyword Match": match_percentage * 100,  # Convert to percentage
             "AI Score": ai_analysis["suitability_score"],
-            "Composite Score": round(composite_score, 1),
-            "Recommendation": final_recommendation,
+            "Recommendation": ai_analysis["interview_recommendation"],
             "Key Strengths": ai_analysis["strengths"],
             "Potential Gaps": ai_analysis["gaps"],
-            "Detailed Analysis": ai_analysis["detailed_recommendation"],
-            "Matched Keywords": get_matched_keywords(processed_text, keywords)
+            "Detailed Analysis": ai_analysis["detailed_recommendation"]
         }
     except Exception as e:
         return {
@@ -361,54 +348,29 @@ def process_cv(file, keywords, job_description):
             "Error": str(e)
         }
 
-def process_cvs_with_progress(uploaded_files, keywords, job_description):
-    """Process CVs with a progress bar"""
-    results = []
-    progress_bar = st.progress(0)
-    
-    # Process CVs with concurrent execution
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = [
-            executor.submit(process_cv, file, keywords, job_description) 
-            for file in uploaded_files
-        ]
-        for i, future in enumerate(concurrent.futures.as_completed(futures)):
-            result = future.result()
-            results.append(result)
-            progress_bar.progress((i + 1) / len(uploaded_files))
-    
-    return pd.DataFrame([r for r in results if "Error" not in r])
-
-def display_enhanced_results(results_df, threshold):
+def display_enhanced_results(results_df):
     if results_df.empty:
         st.warning("No results to display")
         return
     
-    # Filter based on composite score threshold
-    filtered_df = results_df[results_df['Composite Score'] >= threshold].copy()
-    filtered_df = filtered_df.sort_values('Composite Score', ascending=False)
-    
-    if filtered_df.empty:
-        st.warning(f"No candidates meet the {threshold}% threshold")
-        return
+    # Sort by AI Score
+    sorted_df = results_df.sort_values('AI Score', ascending=False)
     
     # Summary Statistics
     st.markdown("<h3>Summary</h3>", unsafe_allow_html=True)
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.metric("Total Candidates", len(filtered_df))
+        st.metric("Total Candidates", len(sorted_df))
     with col2:
-        st.metric("Avg Composite Score", f"{filtered_df['Composite Score'].mean():.1f}")
+        st.metric("Strongly Recommended", len(sorted_df[sorted_df['Recommendation'] == 'Strongly Recommend']))
     with col3:
-        st.metric("Strongly Recommended", len(filtered_df[filtered_df['Recommendation'] == 'Strongly Recommend']))
-    with col4:
-        st.metric("Recommended", len(filtered_df[filtered_df['Recommendation'] == 'Recommend']))
+        st.metric("Recommended", len(sorted_df[sorted_df['Recommendation'] == 'Recommend']))
     
     # Detailed Results
     st.markdown("<h3>Candidate Analysis</h3>", unsafe_allow_html=True)
     
-    for _, row in filtered_df.iterrows():
+    for _, row in sorted_df.iterrows():
         # Color coding for recommendations
         recommendation_colors = {
             "Strongly Recommend": "🟢",
@@ -418,15 +380,13 @@ def display_enhanced_results(results_df, threshold):
         }
         rec_color = recommendation_colors.get(row['Recommendation'], "⚪")
         
-        with st.expander(f"{rec_color} {row['Filename']} - Composite Score: {row['Composite Score']}"):
+        with st.expander(f"{rec_color} {row['Filename']} - AI Score: {row['AI Score']}"):
             col1, col2 = st.columns([2, 1])
             
             with col1:
                 st.markdown(f"""
                     <div class='result-card'>
-                        <h4>Overall Assessment</h4>
-                        <p>Composite Score: {row['Composite Score']}</p>
-                        <p>Keyword Match: {row['Keyword Match']:.1f}%</p>
+                        <h4>AI Assessment</h4>
                         <p>AI Score: {row['AI Score']}</p>
                         <p><strong>Recommendation: {row['Recommendation']}</strong></p>
                     </div>
@@ -453,13 +413,6 @@ def display_enhanced_results(results_df, threshold):
                 for gap in row['Potential Gaps']:
                     st.markdown(f"• {gap}")
                 st.markdown("</div>", unsafe_allow_html=True)
-                
-                st.markdown("""
-                    <div class='result-card'>
-                        <h4>Matched Keywords</h4>
-                """, unsafe_allow_html=True)
-                st.write(", ".join(row['Matched Keywords']))
-                st.markdown("</div>", unsafe_allow_html=True)
 
 def main():
     set_custom_style()
@@ -467,9 +420,9 @@ def main():
     # App Header
     st.markdown("""
         <div style='text-align: center; padding: 2rem 0;'>
-            <h1>📄 CV Analysis Assistant</h1>
+            <h1>📄 AI CV Analyzer</h1>
             <p style='font-size: 1.2rem; color: #666;'>
-                Powered by AI to help you find the best candidates
+                AI-powered CV analysis for candidate evaluation
             </p>
         </div>
     """, unsafe_allow_html=True)
@@ -519,26 +472,6 @@ def main():
         
         st.markdown("<div class='divider'></div>", unsafe_allow_html=True)
         
-        # Keywords
-        st.markdown("<h3>Keywords</h3>", unsafe_allow_html=True)
-        keywords_input = st.text_area(
-            "",
-            placeholder="Enter keywords separated by commas...",
-            help="These keywords will be used to match against CVs"
-        )
-        
-        if keywords_input:
-            keywords = [k.strip() for k in keywords_input.split(',') if k.strip()]
-            st.markdown(f"""
-                <div class='info-box'>
-                    <p>🎯 {len(keywords)} keywords identified</p>
-                </div>
-            """, unsafe_allow_html=True)
-        else:
-            keywords = []
-        
-        st.markdown("<div class='divider'></div>", unsafe_allow_html=True)
-        
         # File Upload
         st.markdown("<h3>Upload CVs</h3>", unsafe_allow_html=True)
         uploaded_files = st.file_uploader(
@@ -553,26 +486,38 @@ def main():
                     <p>📎 {len(uploaded_files)} files uploaded</p>
                 </div>
             """, unsafe_allow_html=True)
-        
-        # Analysis Settings
-        st.markdown("<h3>Analysis Settings</h3>", unsafe_allow_html=True)
-        match_threshold = st.slider(
-            "Minimum Composite Score Threshold",
-            0, 100, 10,
-            format="%d%%",
-            help="Set the minimum composite score required"
-        )
     
     with tabs[1]:
         if st.button("Start Analysis", type="primary"):
-            if not all([keywords, uploaded_files, job_description]):
-                st.error("Please fill in all required information first")
+            if not all([uploaded_files, job_description]):
+                st.error("Please provide both job description and CVs")
                 return
             
-            with st.spinner('Analyzing CVs...'):
-                # Your existing analysis code here
-                results = process_cvs_with_progress(uploaded_files, keywords, job_description)
-                display_enhanced_results(results, match_threshold)
+            with st.spinner('Analyzing CVs with AI...'):
+                results = []
+                progress_bar = st.progress(0)
+                
+                # Process CVs with concurrent execution
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    futures = [
+                        executor.submit(process_cv, file, job_description) 
+                        for file in uploaded_files
+                    ]
+                    for i, future in enumerate(concurrent.futures.as_completed(futures)):
+                        result = future.result()
+                        results.append(result)
+                        progress_bar.progress((i + 1) / len(uploaded_files))
+                
+                # Create dataframe and display results
+                df = pd.DataFrame([r for r in results if "Error" not in r])
+                display_enhanced_results(df)
+                
+                # Display any errors
+                errors = [r for r in results if "Error" in r]
+                if errors:
+                    st.error("Errors occurred while processing some files:")
+                    for error in errors:
+                        st.error(f"{error['Filename']}: {error['Error']}")
     
     with tabs[2]:
         st.markdown("""
@@ -581,26 +526,17 @@ def main():
                 <ol>
                     <li>Enter your Gemini API key in the sidebar</li>
                     <li>Paste the complete job description</li>
-                    <li>Enter relevant keywords for the position</li>
                     <li>Upload candidate CVs (PDF format)</li>
-                    <li>Set your minimum composite score threshold</li>
                     <li>Click "Start Analysis" to begin</li>
                 </ol>
             </div>
             
             <h3>About the Analysis</h3>
             <div class='info-box'>
-                <p>This tool combines keyword matching with AI analysis to:</p>
-                <ul>
-                    <li>Match CV content against your keywords</li>
-                    <li>Evaluate candidate suitability</li>
-                    <li>Identify key strengths and gaps</li>
-                    <li>Provide interview recommendations</li>
-                </ul>
+                <p>This tool uses AI to analyze CVs against the job description and provide interview recommendations.</p>
             </div>
         """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
-
             
