@@ -3,3 +3,4 @@ pandas
 pdfminer.six
 scikit-learn
 yake
+google-generativeai
