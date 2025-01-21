@@ -66,13 +66,26 @@ def set_custom_style():
         /* Buttons */
         .stButton > button {
             background-color: #0066CC !important;
-            color: white !important;
+            color: #FFFFFF !important;
             border: none !important;
             border-radius: 4px !important;
             padding: 10px 20px !important;
             font-weight: 500 !important;
             font-size: 16px !important;
             cursor: pointer !important;
+        }
+        
+        /* Ensure button text stays white in all states */
+        .stButton > button:hover {
+            color: #FFFFFF !important;
+        }
+        
+        .stButton > button:active {
+            color: #FFFFFF !important;
+        }
+        
+        .stButton > button:focus {
+            color: #FFFFFF !important;
         }
         
         /* File uploader */
@@ -86,7 +99,7 @@ def set_custom_style():
         /* Results cards */
         .result-card {
             border: 1px solid #e2e8f0;
-            border-radius: 4px;
+            border-radius: 8px;
             padding: 20px;
             margin-bottom: 16px;
             background: white;
@@ -106,19 +119,18 @@ def set_custom_style():
         }
         
         .stTabs [data-baseweb="tab"] {
-            background: white;
-            border: none;
             padding: 10px 16px;
             color: #64748b;
             font-weight: 500;
             font-size: 15px;
+            border-radius: 6px 6px 0 0;
         }
         
         .stTabs [aria-selected="true"] {
-            background: white;
-            color: #0066CC;
+            color: #0f172a;
             font-weight: 600;
-            border-bottom: 2px solid #0066CC;
+            background: white;
+            border-bottom: 2px solid #0f172a;
         }
         
         /* Progress bar */
@@ -225,17 +237,6 @@ def set_custom_style():
         
         .css-1n76uvr {
             width: 100% !important;
-        }
-        
-        /* Remove transition effects from expandable sections */
-        .streamlit-expanderHeader {
-            background: white !important;
-            border: 1px solid #e2e8f0 !important;
-        }
-        
-        /* Remove hover effects */
-        .streamlit-expanderHeader:hover {
-            background: white !important;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -530,9 +531,9 @@ def main():
     st.markdown("""
         <div class="header-container">
             <div class="content-container">
-                <h1 style="font-size: 40px; margin-bottom: 8px;">🌍 Aceli CV Analysis Tool</h1>
+                <h1 style="font-size: 40px; margin-bottom: 8px;">📄 CV Analysis</h1>
                 <p style="font-size: 20px; color: #64748b; margin-top: 8px;">
-                    AI-powered candidate assessment
+                    AI-powered CV evaluation system for efficient candidate assessment
                 </p>
             </div>
         </div>
