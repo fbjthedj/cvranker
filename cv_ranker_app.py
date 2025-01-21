@@ -188,6 +188,56 @@ def set_custom_style():
             background: rgba(55, 53, 47, 0.09);
             margin: 2em 0;
         }
+        
+        /* Updated header container styling */
+        .header-container {
+            padding: 3rem 2rem 2rem 2rem;
+            margin-bottom: 2rem;
+            background: white;
+            border-bottom: 1px solid rgba(55, 53, 47, 0.09);
+        }
+        
+        /* Title styling */
+        .page-title {
+            font-family: 'Inter', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: rgb(55, 53, 47);
+            margin-bottom: 0.5rem;
+            line-height: 1.2;
+            letter-spacing: -0.02em;
+        }
+        
+        /* Subtitle styling */
+        .page-subtitle {
+            font-family: 'Inter', sans-serif;
+            font-size: 1.1rem;
+            color: rgba(55, 53, 47, 0.65);
+            margin-top: 0.5rem;
+            line-height: 1.5;
+        }
+        
+        /* Ensure proper content spacing */
+        .content-container {
+            padding: 0 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        /* Adjust streamlit default container */
+        .block-container {
+            padding-top: 0 !important;
+            margin-top: 0 !important;
+        }
+        
+        /* Hide default streamlit padding */
+        .css-1544g2n {
+            padding-top: 0 !important;
+        }
+        
+        .css-1n76uvr {
+            width: 100% !important;
+        }
         </style>
     """, unsafe_allow_html=True)
 
@@ -462,13 +512,15 @@ def display_enhanced_results(results_df):
 def main():
     set_custom_style()
     
-    # App Header with Notion-like styling
+    # Updated header with better spacing and structure
     st.markdown("""
-        <div class="block-container">
-            <h1>📄 CV Analysis</h1>
-            <p style="color: rgba(55, 53, 47, 0.65);">
-                AI-powered CV evaluation system
-            </p>
+        <div class="header-container">
+            <div class="content-container">
+                <div class="page-title">📄 CV Analysis</div>
+                <div class="page-subtitle">
+                    AI-powered CV evaluation system for efficient candidate assessment
+                </div>
+            </div>
         </div>
     """, unsafe_allow_html=True)
     
