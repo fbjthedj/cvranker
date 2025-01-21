@@ -142,9 +142,10 @@ def set_custom_style():
         
         /* Header container */
         .header-container {
-            padding: 40px 32px 32px 32px;
+            padding: 48px 32px 40px 32px;
             background: white;
             border-bottom: 1px solid #e2e8f0;
+            margin-bottom: 32px;
         }
         
         /* Content container */
@@ -152,6 +153,24 @@ def set_custom_style():
             max-width: 1200px;
             margin: 0 auto;
             padding: 0 32px;
+        }
+        
+        /* Header typography */
+        .header-container h1 {
+            font-size: 40px;
+            font-weight: 700;
+            line-height: 1.2;
+            color: #0f172a;
+            margin-bottom: 8px;
+            letter-spacing: -0.02em;
+        }
+        
+        .header-container p {
+            font-size: 20px;
+            line-height: 1.4;
+            color: #64748b;
+            margin-top: 8px;
+            font-weight: 400;
         }
         
         /* Status indicators */
@@ -483,14 +502,14 @@ def display_enhanced_results(results_df):
 def main():
     set_custom_style()
     
-    # Updated header with better spacing and structure
+    # Updated header with proper sizing
     st.markdown("""
         <div class="header-container">
             <div class="content-container">
-                <div class="page-title">📄 CV Analysis</div>
-                <div class="page-subtitle">
+                <h1 style="font-size: 40px; margin-bottom: 8px;">📄 CV Analysis</h1>
+                <p style="font-size: 20px; color: #64748b; margin-top: 8px;">
                     AI-powered CV evaluation system for efficient candidate assessment
-                </div>
+                </p>
             </div>
         </div>
     """, unsafe_allow_html=True)
