@@ -530,9 +530,9 @@ def main():
     st.markdown("""
         <div class="header-container">
             <div class="content-container">
-                <h1 style="font-size: 40px; margin-bottom: 8px;">📄 CV Analysis</h1>
+                <h1 style="font-size: 40px; margin-bottom: 8px;">🌍 Aceli CV Analysis Tool</h1>
                 <p style="font-size: 20px; color: #64748b; margin-top: 8px;">
-                    AI-powered CV evaluation system for efficient candidate assessment
+                    AI-powered candidate assessment
                 </p>
             </div>
         </div>
