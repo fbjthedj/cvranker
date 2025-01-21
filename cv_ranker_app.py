@@ -518,7 +518,7 @@ def main():
             <div class="content-container">
                 <div class="page-title">🌍 Aceli CV Analysis Tool</div>
                 <div class="page-subtitle">
-                    AI-powered CV candidate assessment
+                    AI candidate assessment
                 </div>
             </div>
         </div>
