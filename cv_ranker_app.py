@@ -516,7 +516,7 @@ def main():
     st.markdown("""
         <div class="header-container">
             <div class="content-container">
-                <div class="page-title">🌍 Aceli Candidate CV Analysis Tool</div>
+                <div class="page-title">🌍 Aceli CV Analysis Tool</div>
                 <div class="page-subtitle">
                     AI-powered CV candidate assessment
                 </div>
