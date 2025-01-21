@@ -292,12 +292,23 @@ def analyze_cv_with_ai(cv_text: str, job_description: str) -> Dict:
     """
     model = genai.GenerativeModel('gemini-pro')
     prompt = f"""
-    You are an expert recruitment AI.
-    Evaluate a candidate's CV against the provided job description to determine their suitability for the role. 
-    Provide a clear interview recommendation based on evidence extracted from the CV.
-    Focus on assessing qualifications, skills, and relevant experiences outlined in the CV as they relate to the job description. 
-    Provide specific examples to support your assessment and final recommendation.
-    Don't be afraid to reject candidates that you feel might not be suitable to perform the role.
+    You are an expert recruitment AI. 
+    Your task is to assess a candidate's Curriculum Vitae (CV) against a provided job description to determine their suitability for the role.
+    Steps for Evaluation:
+    Job Description Analysis
+    Analyze the job description to identify and extract key qualifications (e.g., education, certifications), essential skills (technical and soft skills), and crucial experiences required for the role.
+    Prioritize these elements based on their importance for success in the position.
+    CV Assessment
+    Review the CV to identify qualifications, skills, and experiences that align with the job requirements.
+    Quantify accomplishments whenever possible, focusing on metrics, results, or specific impacts (e.g., "increased social media engagement by 20% within three months" instead of "managed social media").
+    Identify potential red flags, such as lack of required experience, career history inconsistencies, or skills gaps relative to the job description.
+    Comparative Analysis
+    Compare the job requirements with the CV findings to assess the candidate's suitability.
+    Evaluate the depth of experience by determining whether the candidate has demonstrated mastery of skills through relevant projects and achievements.
+    Evidence-Based Recommendation
+    Provide a clear recommendation on whether the candidate should proceed to an interview, supported by specific evidence from the CV.
+    If recommending an interview, highlight strengths and suggest areas to explore key skills further.
+    If rejecting the candidate, clearly explain the decision based on specific gaps in qualifications, skills, or experience critical to the role.
 
     Provide your analysis in the following strict format:
 
