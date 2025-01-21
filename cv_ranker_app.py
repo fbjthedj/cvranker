@@ -65,7 +65,7 @@ def set_custom_style():
         
         /* Buttons */
         .stButton > button {
-            background-color: #0066CC !important;
+            background-color: #FFFFFF !important;
             color: #FFFFFF !important;
             border: none !important;
             border-radius: 4px !important;
