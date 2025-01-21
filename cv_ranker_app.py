@@ -475,9 +475,9 @@ def main():
     st.markdown("""
         <div class="header-container">
             <div class="content-container">
-                <div class="page-title">📄 CV Analysis</div>
+                <div class="page-title">🌍 Aceli CV Analysis Tool</div>
                 <div class="page-subtitle">
-                    AI-powered CV evaluation system for efficient candidate assessment
+                    AI-powered candidate assessment
                 </div>
             </div>
         </div>
