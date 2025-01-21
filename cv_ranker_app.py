@@ -12,136 +12,181 @@ from typing import Dict, List
 def set_custom_style():
     st.markdown("""
         <style>
-        /* Main container styling */
+        /* Global Notion-like styling */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        /* Reset and base styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        /* Main container */
         .main {
-            padding: 2rem;
-            max-width: 1200px;
+            max-width: 1000px;
             margin: 0 auto;
+            padding: 2rem;
+            color: rgb(55, 53, 47);
         }
         
-        /* Headers styling */
+        /* Typography */
+        h1, h2, h3, p {
+            color: rgb(55, 53, 47);
+        }
+        
         h1 {
-            font-family: 'Inter', sans-serif;
             font-weight: 700;
-            color: #37352f;
-            margin-bottom: 1.5rem;
-            font-size: 2.5rem !important;
+            font-size: 2.5em;
+            line-height: 1.2;
+            margin-bottom: 0.5em;
         }
         
-        h2, h3 {
-            font-family: 'Inter', sans-serif;
-            color: #37352f;
+        h2 {
             font-weight: 600;
-            margin-top: 2rem !important;
+            font-size: 1.5em;
+            margin: 1.4em 0 0.5em;
         }
         
-        /* Text styling */
-        p, li {
-            font-family: 'Inter', sans-serif;
-            color: #37352f;
-            font-size: 1rem;
+        h3 {
+            font-weight: 600;
+            font-size: 1.2em;
+            margin: 1em 0 0.5em;
+        }
+        
+        p {
+            font-size: 1em;
             line-height: 1.5;
+            margin-bottom: 0.5em;
         }
         
-        /* Card-like containers */
-        .stExpander {
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            margin-bottom: 1rem;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        /* Notion-like blocks */
+        .block-container {
+            padding: 3px 2px;
+            margin: 1px 0;
+            transition: background 20ms ease-in 0s;
         }
         
-        /* Button styling */
+        .block-container:hover {
+            background: rgba(55, 53, 47, 0.03);
+        }
+        
+        /* Input fields */
+        .stTextInput > div > div > input,
+        .stTextArea > div > div > textarea {
+            background: transparent;
+            border: 1px solid rgba(55, 53, 47, 0.16);
+            border-radius: 3px;
+            padding: 0.5em;
+            font-size: 1em;
+            transition: background 20ms ease-in 0s;
+        }
+        
+        .stTextInput > div > div > input:hover,
+        .stTextArea > div > div > textarea:hover {
+            background: rgba(55, 53, 47, 0.03);
+        }
+        
+        .stTextInput > div > div > input:focus,
+        .stTextArea > div > div > textarea:focus {
+            background: white;
+            border-color: rgb(35, 131, 226);
+        }
+        
+        /* Buttons */
         .stButton > button {
-            background-color: #2ea44f;
+            background: rgb(35, 131, 226);
             color: white;
             border: none;
-            border-radius: 6px;
-            padding: 0.5rem 1rem;
+            border-radius: 3px;
+            padding: 0.5em 1em;
             font-weight: 500;
+            transition: background 20ms ease-in 0s;
         }
         
         .stButton > button:hover {
-            background-color: #2c974b;
+            background: rgb(28, 105, 181);
         }
         
-        /* Input field styling */
-        .stTextInput > div > div > input,
-        .stTextArea > div > div > textarea {
-            border-radius: 6px;
-            border: 1px solid #e0e0e0;
-            padding: 0.5rem;
+        /* File uploader */
+        .uploadedFile {
+            border: 1px dashed rgba(55, 53, 47, 0.16);
+            border-radius: 3px;
+            padding: 1em;
+            background: rgba(55, 53, 47, 0.03);
         }
         
-        /* Sidebar styling */
-        .css-1d391kg {
-            padding: 2rem 1rem;
-        }
-        
-        /* Progress bar styling */
-        .stProgress > div > div > div {
-            background-color: #2ea44f;
-        }
-        
-        /* Custom cards for results */
+        /* Results cards */
         .result-card {
-            background-color: white;
-            padding: 1.5rem;
-            border-radius: 8px;
-            border: 1px solid #e0e0e0;
-            margin-bottom: 1rem;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(55, 53, 47, 0.16);
+            border-radius: 3px;
+            padding: 1em;
+            margin-bottom: 1em;
+            background: white;
+            transition: background 20ms ease-in 0s;
+        }
+        
+        .result-card:hover {
+            background: rgba(55, 53, 47, 0.03);
+        }
+        
+        /* Sidebar */
+        .css-1d391kg {
+            background: rgb(251, 251, 250);
+            border-right: 1px solid rgba(55, 53, 47, 0.09);
+        }
+        
+        /* Tabs */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 1em;
+            border-bottom: 1px solid rgba(55, 53, 47, 0.09);
+        }
+        
+        .stTabs [data-baseweb="tab"] {
+            padding: 0.5em 1em;
+            color: rgb(55, 53, 47);
+            font-weight: 500;
+        }
+        
+        .stTabs [aria-selected="true"] {
+            background: rgba(55, 53, 47, 0.03);
+            border-radius: 3px;
+        }
+        
+        /* Progress bar */
+        .stProgress > div > div > div {
+            background: rgb(35, 131, 226);
         }
         
         /* Status indicators */
-        .status-indicator {
+        .status {
             display: inline-block;
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            margin-right: 8px;
+            margin-right: 6px;
         }
         
-        /* Recommendation colors */
-        .recommend-strong { background-color: #2ea44f; }
-        .recommend-yes { background-color: #79b8ff; }
-        .recommend-maybe { background-color: #ffab70; }
-        .recommend-no { background-color: #f97583; }
-        
-        /* File upload area styling */
-        .uploadedFile {
-            border: 2px dashed #e0e0e0;
-            border-radius: 8px;
-            padding: 2rem;
-            text-align: center;
-            background-color: #fafafa;
-        }
+        .status-green { background: rgb(68, 131, 97); }
+        .status-yellow { background: rgb(212, 167, 44); }
+        .status-orange { background: rgb(217, 115, 13); }
+        .status-red { background: rgb(212, 76, 71); }
         
         /* Info boxes */
         .info-box {
-            background-color: #f6f8fa;
-            border: 1px solid #e0e0e0;
-            border-radius: 6px;
-            padding: 1rem;
-            margin: 1rem 0;
+            background: rgb(251, 251, 250);
+            border: 1px solid rgba(55, 53, 47, 0.09);
+            border-radius: 3px;
+            padding: 1em;
+            margin: 1em 0;
         }
         
-        /* Dataframe styling */
-        .dataframe {
-            border: none !important;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-        }
-        
-        .dataframe th {
-            background-color: #f6f8fa;
-            font-weight: 600;
-        }
-        
-        /* Custom divider */
+        /* Dividers */
         .divider {
             height: 1px;
-            background-color: #e0e0e0;
-            margin: 2rem 0;
+            background: rgba(55, 53, 47, 0.09);
+            margin: 2em 0;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -198,8 +243,9 @@ def analyze_cv_with_ai(cv_text: str, job_description: str) -> Dict:
     """
     model = genai.GenerativeModel('gemini-pro')
     prompt = f"""
-    As an expert recruitment AI, first review the job description to identify required skills, experience, and qualifications. Next, analyze the candidate's CV thoroughly to find relevant information that corresponds with the job criteria, paying close attention to specific skills, achievements, experience, and qualifications that align with the requirements. After gathering this evidence, assess the candidate's suitability for the role based on their capability to perform effectively. Finally, provide a clear and concise interview recommendation, supported by factual evidence drawn from the CV.
-    
+    As an expert recruitment AI, analyze this candidate's CV against the job description provided.
+    Focus on determining their suitability for the role and provide a clear interview recommendation.
+
     You must follow these scoring guidelines:
     - Suitability Score 80-100: Use "Strongly Recommend"
     - Suitability Score 60-79: Use "Recommend"
@@ -416,63 +462,79 @@ def display_enhanced_results(results_df):
 def main():
     set_custom_style()
     
-    # App Header
+    # App Header with Notion-like styling
     st.markdown("""
-        <div style='text-align: center; padding: 2rem 0;'>
-            <h1>🌍 Aceli CV Analyzer Tool</h1>
-            <p style='font-size: 1.2rem; color: #666;'>
-                AI-powered CV analysis for candidate interview suitability
+        <div class="block-container">
+            <h1>📄 CV Analysis</h1>
+            <p style="color: rgba(55, 53, 47, 0.65);">
+                AI-powered CV evaluation system
             </p>
         </div>
     """, unsafe_allow_html=True)
     
-    # Sidebar Configuration
+    # Sidebar with Notion-like styling
     with st.sidebar:
         st.markdown("""
-            <div style='padding: 1rem 0;'>
-                <h3 style='margin: 0;'>⚙️ Configuration</h3>
+            <div class="block-container">
+                <h3>⚙️ Settings</h3>
             </div>
         """, unsafe_allow_html=True)
         
         api_key = st.text_input(
             "Gemini API Key",
             type="password",
-            help="Enter your Google Gemini API key"
+            help="Enter your Google Gemini API key",
+            placeholder="Paste your API key here..."
         )
         
         if api_key:
             if initialize_gemini(api_key):
-                st.success("✅ API Connected")
+                st.markdown("""
+                    <div class="info-box" style="background: rgb(221, 237, 234);">
+                        <p style="color: rgb(68, 131, 97);">✓ API Connected</p>
+                    </div>
+                """, unsafe_allow_html=True)
             else:
-                st.error("❌ Invalid API Key")
+                st.markdown("""
+                    <div class="info-box" style="background: rgb(253, 230, 230);">
+                        <p style="color: rgb(212, 76, 71);">✕ Invalid API Key</p>
+                    </div>
+                """, unsafe_allow_html=True)
                 st.stop()
         else:
-            st.warning("⚠️ API Key Required")
+            st.markdown("""
+                <div class="info-box" style="background: rgb(251, 251, 250);">
+                    <p style="color: rgba(55, 53, 47, 0.65);">Please enter your API key to continue</p>
+                </div>
+            """, unsafe_allow_html=True)
             st.stop()
     
-    # Main Content Area
+    # Main content with Notion-like tabs
     tabs = st.tabs(["📝 Input", "🔍 Analysis", "ℹ️ Help"])
     
     with tabs[0]:
-        st.markdown("<h3>Job Details</h3>", unsafe_allow_html=True)
-        
-        # Job Description
         st.markdown("""
-            <div class='info-box'>
-                <p style='margin: 0;'>📋 Enter the job description below</p>
+            <div class="block-container">
+                <h2>Job Description</h2>
+                <p style="color: rgba(55, 53, 47, 0.65);">Enter the complete job description below</p>
             </div>
         """, unsafe_allow_html=True)
         
         job_description = st.text_area(
             "",
             height=200,
-            placeholder="Paste the job description here..."
+            placeholder="Type or paste job description here..."
         )
         
-        st.markdown("<div class='divider'></div>", unsafe_allow_html=True)
+        st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
         
-        # File Upload
-        st.markdown("<h3>Upload CVs</h3>", unsafe_allow_html=True)
+        st.markdown("""
+            <div class="block-container">
+                <h2>Upload CVs</h2>
+                <p style="color: rgba(55, 53, 47, 0.65);">Select PDF files to analyze</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
         uploaded_files = st.file_uploader(
             "",
             accept_multiple_files=True,
@@ -481,8 +543,8 @@ def main():
         
         if uploaded_files:
             st.markdown(f"""
-                <div class='info-box'>
-                    <p>📎 {len(uploaded_files)} files uploaded</p>
+                <div class="info-box">
+                    <p>📎 {len(uploaded_files)} files ready for analysis</p>
                 </div>
             """, unsafe_allow_html=True)
     
