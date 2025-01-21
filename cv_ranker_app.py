@@ -21,103 +21,114 @@ def set_custom_style():
         
         /* Typography */
         h1, h2, h3, p {
-            color: rgb(55, 53, 47);
+            color: #1a1a1a;
         }
         
         h1 {
-            font-size: 32px;
+            font-size: 34px;
             font-weight: 700;
             line-height: 1.2;
-            margin-bottom: 12px;
+            margin-bottom: 16px;
+            color: #0f172a;
         }
         
         h2 {
             font-size: 24px;
             font-weight: 600;
-            margin: 24px 0 12px 0;
+            margin: 24px 0 16px 0;
+            color: #1e293b;
         }
         
         h3 {
             font-size: 20px;
             font-weight: 600;
             margin: 20px 0 12px 0;
+            color: #334155;
         }
         
         p {
             font-size: 16px;
             line-height: 1.5;
             margin-bottom: 8px;
+            color: #475569;
         }
         
         /* Input fields */
         .stTextInput > div > div > input,
         .stTextArea > div > div > textarea {
-            border: 1px solid #E0E0E0;
-            border-radius: 4px;
-            padding: 8px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 10px;
             font-size: 16px;
+            background: white;
         }
         
         /* Buttons */
         .stButton > button {
-            background: #2E2E2E;
+            background: #0f172a;
             color: white;
             border: none;
-            border-radius: 4px;
-            padding: 8px 16px;
+            border-radius: 6px;
+            padding: 10px 20px;
             font-weight: 500;
+            font-size: 16px;
         }
         
         /* File uploader */
         .uploadedFile {
-            border: 1px solid #E0E0E0;
-            border-radius: 4px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
             padding: 16px;
             background: white;
         }
         
         /* Results cards */
         .result-card {
-            border: 1px solid #E0E0E0;
-            border-radius: 4px;
-            padding: 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
             margin-bottom: 16px;
             background: white;
         }
         
         /* Sidebar */
         .css-1d391kg {
-            background: white;
-            border-right: 1px solid #E0E0E0;
+            background: #f8fafc;
+            border-right: 1px solid #e2e8f0;
         }
         
         /* Tabs */
         .stTabs [data-baseweb="tab-list"] {
-            gap: 16px;
-            border-bottom: 1px solid #E0E0E0;
+            gap: 2px;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 0 4px;
         }
         
         .stTabs [data-baseweb="tab"] {
-            padding: 8px 16px;
-            color: rgb(55, 53, 47);
+            padding: 10px 16px;
+            color: #64748b;
             font-weight: 500;
+            font-size: 15px;
+            border-radius: 6px 6px 0 0;
         }
         
         .stTabs [aria-selected="true"] {
-            background: #F7F7F7;
-            border-radius: 4px;
+            color: #0f172a;
+            font-weight: 600;
+            background: white;
+            border-bottom: 2px solid #0f172a;
         }
         
         /* Progress bar */
         .stProgress > div > div > div {
-            background: #2E2E2E;
+            background: #0f172a;
         }
         
         /* Info boxes */
         .info-box {
-            background: #F7F7F7;
-            border: 1px solid #E0E0E0;
-            border-radius: 4px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
             padding: 16px;
             margin: 16px 0;
         }
@@ -125,7 +136,7 @@ def set_custom_style():
         /* Dividers */
         .divider {
             height: 1px;
-            background: #E0E0E0;
+            background: #e2e8f0;
             margin: 24px 0;
         }
         
@@ -133,7 +144,7 @@ def set_custom_style():
         .header-container {
             padding: 40px 32px 32px 32px;
             background: white;
-            border-bottom: 1px solid #E0E0E0;
+            border-bottom: 1px solid #e2e8f0;
         }
         
         /* Content container */
@@ -141,6 +152,44 @@ def set_custom_style():
             max-width: 1200px;
             margin: 0 auto;
             padding: 0 32px;
+        }
+        
+        /* Status indicators */
+        .recommendation-status {
+            font-weight: 500;
+            margin-right: 8px;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        
+        .status-strongly-recommend {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .status-recommend {
+            background: #fef9c3;
+            color: #854d0e;
+        }
+        
+        .status-consider {
+            background: #ffedd5;
+            color: #9a3412;
+        }
+        
+        .status-do-not-recommend {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        /* Section headers */
+        .section-header {
+            font-size: 18px;
+            font-weight: 600;
+            color: #0f172a;
+            margin: 24px 0 16px 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e2e8f0;
         }
         
         /* Streamlit container adjustments */
@@ -155,12 +204,6 @@ def set_custom_style():
         
         .css-1n76uvr {
             width: 100% !important;
-        }
-        
-        /* Clean status indicators */
-        .recommendation-status {
-            font-weight: 500;
-            margin-right: 8px;
         }
         </style>
     """, unsafe_allow_html=True)
