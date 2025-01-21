@@ -15,7 +15,6 @@ def set_custom_style():
         /* Global Notion-like styling */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         
-        /* Reset and base styles */
         * {
             margin: 0;
             padding: 0;
@@ -61,37 +60,14 @@ def set_custom_style():
             margin-bottom: 0.5em;
         }
         
-        /* Notion-like blocks */
-        .block-container {
-            padding: 3px 2px;
-            margin: 1px 0;
-            transition: background 20ms ease-in 0s;
-        }
-        
-        .block-container:hover {
-            background: rgba(55, 53, 47, 0.03);
-        }
-        
         /* Input fields */
         .stTextInput > div > div > input,
         .stTextArea > div > div > textarea {
-            background: transparent;
+            background: white;
             border: 1px solid rgba(55, 53, 47, 0.16);
             border-radius: 3px;
             padding: 0.5em;
             font-size: 1em;
-            transition: background 20ms ease-in 0s;
-        }
-        
-        .stTextInput > div > div > input:hover,
-        .stTextArea > div > div > textarea:hover {
-            background: rgba(55, 53, 47, 0.03);
-        }
-        
-        .stTextInput > div > div > input:focus,
-        .stTextArea > div > div > textarea:focus {
-            background: white;
-            border-color: rgb(35, 131, 226);
         }
         
         /* Buttons */
@@ -102,19 +78,14 @@ def set_custom_style():
             border-radius: 3px;
             padding: 0.5em 1em;
             font-weight: 500;
-            transition: background 20ms ease-in 0s;
-        }
-        
-        .stButton > button:hover {
-            background: rgb(28, 105, 181);
         }
         
         /* File uploader */
         .uploadedFile {
-            border: 1px dashed rgba(55, 53, 47, 0.16);
+            border: 1px solid rgba(55, 53, 47, 0.16);
             border-radius: 3px;
             padding: 1em;
-            background: rgba(55, 53, 47, 0.03);
+            background: white;
         }
         
         /* Results cards */
@@ -124,11 +95,6 @@ def set_custom_style():
             padding: 1em;
             margin-bottom: 1em;
             background: white;
-            transition: background 20ms ease-in 0s;
-        }
-        
-        .result-card:hover {
-            background: rgba(55, 53, 47, 0.03);
         }
         
         /* Sidebar */
@@ -150,7 +116,7 @@ def set_custom_style():
         }
         
         .stTabs [aria-selected="true"] {
-            background: rgba(55, 53, 47, 0.03);
+            background: rgb(251, 251, 250);
             border-radius: 3px;
         }
         
@@ -168,11 +134,6 @@ def set_custom_style():
             margin-right: 6px;
         }
         
-        .status-green { background: rgb(68, 131, 97); }
-        .status-yellow { background: rgb(212, 167, 44); }
-        .status-orange { background: rgb(217, 115, 13); }
-        .status-red { background: rgb(212, 76, 71); }
-        
         /* Info boxes */
         .info-box {
             background: rgb(251, 251, 250);
@@ -189,7 +150,7 @@ def set_custom_style():
             margin: 2em 0;
         }
         
-        /* Updated header container styling */
+        /* Header container */
         .header-container {
             padding: 3rem 2rem 2rem 2rem;
             margin-bottom: 2rem;
@@ -197,7 +158,7 @@ def set_custom_style():
             border-bottom: 1px solid rgba(55, 53, 47, 0.09);
         }
         
-        /* Title styling */
+        /* Page title */
         .page-title {
             font-family: 'Inter', sans-serif;
             font-size: 2.5rem;
@@ -205,10 +166,9 @@ def set_custom_style():
             color: rgb(55, 53, 47);
             margin-bottom: 0.5rem;
             line-height: 1.2;
-            letter-spacing: -0.02em;
         }
         
-        /* Subtitle styling */
+        /* Page subtitle */
         .page-subtitle {
             font-family: 'Inter', sans-serif;
             font-size: 1.1rem;
@@ -217,20 +177,19 @@ def set_custom_style():
             line-height: 1.5;
         }
         
-        /* Ensure proper content spacing */
+        /* Content container */
         .content-container {
             padding: 0 2rem;
             max-width: 1200px;
             margin: 0 auto;
         }
         
-        /* Adjust streamlit default container */
+        /* Streamlit container adjustments */
         .block-container {
             padding-top: 0 !important;
             margin-top: 0 !important;
         }
         
-        /* Hide default streamlit padding */
         .css-1544g2n {
             padding-top: 0 !important;
         }
@@ -293,8 +252,8 @@ def analyze_cv_with_ai(cv_text: str, job_description: str) -> Dict:
     """
     model = genai.GenerativeModel('gemini-pro')
     prompt = f"""
-    As an expert recruitment AI, evaluate a candidate's CV against the provided job description to determine their suitability for the role. Provide a clear interview recommendation based on evidence.
-    Focus on assessing qualifications, skills, and experiences outlined in the CV as they relate to the job description. Provide specific examples to support your assessment.
+    As an expert recruitment AI, analyze this candidate's CV against the job description provided.
+    Focus on determining their suitability for the role and provide a clear interview recommendation.
 
     You must follow these scoring guidelines:
     - Suitability Score 80-100: Use "Strongly Recommend"
@@ -516,9 +475,9 @@ def main():
     st.markdown("""
         <div class="header-container">
             <div class="content-container">
-                <div class="page-title">🌍 Aceli CV Analysis Tool</div>
+                <div class="page-title">📄 CV Analysis</div>
                 <div class="page-subtitle">
-                    AI candidate assessment
+                    AI-powered CV evaluation system for efficient candidate assessment
                 </div>
             </div>
         </div>
@@ -652,4 +611,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-            
