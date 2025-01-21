@@ -12,23 +12,11 @@ from typing import Dict, List
 def set_custom_style():
     st.markdown("""
         <style>
-        /* Global Notion-like styling */
+        /* Base styles */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         
-        /* Reset and base styles */
         * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        }
-        
-        /* Main container */
-        .main {
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 2rem;
-            color: rgb(55, 53, 47);
         }
         
         /* Typography */
@@ -37,206 +25,142 @@ def set_custom_style():
         }
         
         h1 {
+            font-size: 32px;
             font-weight: 700;
-            font-size: 2.5em;
             line-height: 1.2;
-            margin-bottom: 0.5em;
+            margin-bottom: 12px;
         }
         
         h2 {
+            font-size: 24px;
             font-weight: 600;
-            font-size: 1.5em;
-            margin: 1.4em 0 0.5em;
+            margin: 24px 0 12px 0;
         }
         
         h3 {
+            font-size: 20px;
             font-weight: 600;
-            font-size: 1.2em;
-            margin: 1em 0 0.5em;
+            margin: 20px 0 12px 0;
         }
         
         p {
-            font-size: 1em;
+            font-size: 16px;
             line-height: 1.5;
-            margin-bottom: 0.5em;
-        }
-        
-        /* Notion-like blocks */
-        .block-container {
-            padding: 3px 2px;
-            margin: 1px 0;
-            transition: background 20ms ease-in 0s;
-        }
-        
-        .block-container:hover {
-            background: rgba(55, 53, 47, 0.03);
+            margin-bottom: 8px;
         }
         
         /* Input fields */
         .stTextInput > div > div > input,
         .stTextArea > div > div > textarea {
-            background: transparent;
-            border: 1px solid rgba(55, 53, 47, 0.16);
-            border-radius: 3px;
-            padding: 0.5em;
-            font-size: 1em;
-            transition: background 20ms ease-in 0s;
-        }
-        
-        .stTextInput > div > div > input:hover,
-        .stTextArea > div > div > textarea:hover {
-            background: rgba(55, 53, 47, 0.03);
-        }
-        
-        .stTextInput > div > div > input:focus,
-        .stTextArea > div > div > textarea:focus {
-            background: white;
-            border-color: rgb(35, 131, 226);
+            border: 1px solid #E0E0E0;
+            border-radius: 4px;
+            padding: 8px;
+            font-size: 16px;
         }
         
         /* Buttons */
         .stButton > button {
-            background: rgb(35, 131, 226);
+            background: #2E2E2E;
             color: white;
             border: none;
-            border-radius: 3px;
-            padding: 0.5em 1em;
+            border-radius: 4px;
+            padding: 8px 16px;
             font-weight: 500;
-            transition: background 20ms ease-in 0s;
-        }
-        
-        .stButton > button:hover {
-            background: rgb(28, 105, 181);
         }
         
         /* File uploader */
         .uploadedFile {
-            border: 1px dashed rgba(55, 53, 47, 0.16);
-            border-radius: 3px;
-            padding: 1em;
-            background: rgba(55, 53, 47, 0.03);
+            border: 1px solid #E0E0E0;
+            border-radius: 4px;
+            padding: 16px;
+            background: white;
         }
         
         /* Results cards */
         .result-card {
-            border: 1px solid rgba(55, 53, 47, 0.16);
-            border-radius: 3px;
-            padding: 1em;
-            margin-bottom: 1em;
+            border: 1px solid #E0E0E0;
+            border-radius: 4px;
+            padding: 16px;
+            margin-bottom: 16px;
             background: white;
-            transition: background 20ms ease-in 0s;
-        }
-        
-        .result-card:hover {
-            background: rgba(55, 53, 47, 0.03);
         }
         
         /* Sidebar */
         .css-1d391kg {
-            background: rgb(251, 251, 250);
-            border-right: 1px solid rgba(55, 53, 47, 0.09);
+            background: white;
+            border-right: 1px solid #E0E0E0;
         }
         
         /* Tabs */
         .stTabs [data-baseweb="tab-list"] {
-            gap: 1em;
-            border-bottom: 1px solid rgba(55, 53, 47, 0.09);
+            gap: 16px;
+            border-bottom: 1px solid #E0E0E0;
         }
         
         .stTabs [data-baseweb="tab"] {
-            padding: 0.5em 1em;
+            padding: 8px 16px;
             color: rgb(55, 53, 47);
             font-weight: 500;
         }
         
         .stTabs [aria-selected="true"] {
-            background: rgba(55, 53, 47, 0.03);
-            border-radius: 3px;
+            background: #F7F7F7;
+            border-radius: 4px;
         }
         
         /* Progress bar */
         .stProgress > div > div > div {
-            background: rgb(35, 131, 226);
+            background: #2E2E2E;
         }
-        
-        /* Status indicators */
-        .status {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            margin-right: 6px;
-        }
-        
-        .status-green { background: rgb(68, 131, 97); }
-        .status-yellow { background: rgb(212, 167, 44); }
-        .status-orange { background: rgb(217, 115, 13); }
-        .status-red { background: rgb(212, 76, 71); }
         
         /* Info boxes */
         .info-box {
-            background: rgb(251, 251, 250);
-            border: 1px solid rgba(55, 53, 47, 0.09);
-            border-radius: 3px;
-            padding: 1em;
-            margin: 1em 0;
+            background: #F7F7F7;
+            border: 1px solid #E0E0E0;
+            border-radius: 4px;
+            padding: 16px;
+            margin: 16px 0;
         }
         
         /* Dividers */
         .divider {
             height: 1px;
-            background: rgba(55, 53, 47, 0.09);
-            margin: 2em 0;
+            background: #E0E0E0;
+            margin: 24px 0;
         }
         
-        /* Updated header container styling */
+        /* Header container */
         .header-container {
-            padding: 3rem 2rem 2rem 2rem;
-            margin-bottom: 2rem;
+            padding: 40px 32px 32px 32px;
             background: white;
-            border-bottom: 1px solid rgba(55, 53, 47, 0.09);
+            border-bottom: 1px solid #E0E0E0;
         }
         
-        /* Title styling */
-        .page-title {
-            font-family: 'Inter', sans-serif;
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: rgb(55, 53, 47);
-            margin-bottom: 0.5rem;
-            line-height: 1.2;
-            letter-spacing: -0.02em;
-        }
-        
-        /* Subtitle styling */
-        .page-subtitle {
-            font-family: 'Inter', sans-serif;
-            font-size: 1.1rem;
-            color: rgba(55, 53, 47, 0.65);
-            margin-top: 0.5rem;
-            line-height: 1.5;
-        }
-        
-        /* Ensure proper content spacing */
+        /* Content container */
         .content-container {
-            padding: 0 2rem;
             max-width: 1200px;
             margin: 0 auto;
+            padding: 0 32px;
         }
         
-        /* Adjust streamlit default container */
+        /* Streamlit container adjustments */
         .block-container {
             padding-top: 0 !important;
             margin-top: 0 !important;
         }
         
-        /* Hide default streamlit padding */
         .css-1544g2n {
             padding-top: 0 !important;
         }
         
         .css-1n76uvr {
             width: 100% !important;
+        }
+        
+        /* Clean status indicators */
+        .recommendation-status {
+            font-weight: 500;
+            margin-right: 8px;
         }
         </style>
     """, unsafe_allow_html=True)
