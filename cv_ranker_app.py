@@ -252,8 +252,11 @@ def analyze_cv_with_ai(cv_text: str, job_description: str) -> Dict:
     """
     model = genai.GenerativeModel('gemini-pro')
     prompt = f"""
-    As an expert recruitment AI, analyze this candidate's CV against the job description provided.
-    Focus on determining their suitability for the role and provide a clear interview recommendation.
+    You are an expert recruitment AI.
+    Evaluate a candidate's CV against the provided job description to determine their suitability for the role. 
+    Provide a  clear interview recommendation based on evidence extracted from the CV.
+    Focus on assessing qualifications, skills, and relevant experiences outlined in the CV as they relate to the job description. 
+    Provide specific examples to support your assessment and final recommendation.
 
     You must follow these scoring guidelines:
     - Suitability Score 80-100: Use "Strongly Recommend"
