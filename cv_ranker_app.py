@@ -257,6 +257,7 @@ def analyze_cv_with_ai(cv_text: str, job_description: str) -> Dict:
     Provide a  clear interview recommendation based on evidence extracted from the CV.
     Focus on assessing qualifications, skills, and relevant experiences outlined in the CV as they relate to the job description. 
     Provide specific examples to support your assessment and final recommendation.
+    Don't be afraid to reject candidates that you feel might not be suitable to perform the role.
 
     You must follow these scoring guidelines:
     - Suitability Score 80-100: Use "Strongly Recommend"
