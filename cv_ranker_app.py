@@ -15,6 +15,7 @@ def set_custom_style():
         /* Global Notion-like styling */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         
+        /* Reset and base styles */
         * {
             margin: 0;
             padding: 0;
@@ -60,14 +61,37 @@ def set_custom_style():
             margin-bottom: 0.5em;
         }
         
+        /* Notion-like blocks */
+        .block-container {
+            padding: 3px 2px;
+            margin: 1px 0;
+            transition: background 20ms ease-in 0s;
+        }
+        
+        .block-container:hover {
+            background: rgba(55, 53, 47, 0.03);
+        }
+        
         /* Input fields */
         .stTextInput > div > div > input,
         .stTextArea > div > div > textarea {
-            background: white;
+            background: transparent;
             border: 1px solid rgba(55, 53, 47, 0.16);
             border-radius: 3px;
             padding: 0.5em;
             font-size: 1em;
+            transition: background 20ms ease-in 0s;
+        }
+        
+        .stTextInput > div > div > input:hover,
+        .stTextArea > div > div > textarea:hover {
+            background: rgba(55, 53, 47, 0.03);
+        }
+        
+        .stTextInput > div > div > input:focus,
+        .stTextArea > div > div > textarea:focus {
+            background: white;
+            border-color: rgb(35, 131, 226);
         }
         
         /* Buttons */
@@ -78,14 +102,19 @@ def set_custom_style():
             border-radius: 3px;
             padding: 0.5em 1em;
             font-weight: 500;
+            transition: background 20ms ease-in 0s;
+        }
+        
+        .stButton > button:hover {
+            background: rgb(28, 105, 181);
         }
         
         /* File uploader */
         .uploadedFile {
-            border: 1px solid rgba(55, 53, 47, 0.16);
+            border: 1px dashed rgba(55, 53, 47, 0.16);
             border-radius: 3px;
             padding: 1em;
-            background: white;
+            background: rgba(55, 53, 47, 0.03);
         }
         
         /* Results cards */
@@ -95,6 +124,11 @@ def set_custom_style():
             padding: 1em;
             margin-bottom: 1em;
             background: white;
+            transition: background 20ms ease-in 0s;
+        }
+        
+        .result-card:hover {
+            background: rgba(55, 53, 47, 0.03);
         }
         
         /* Sidebar */
@@ -116,7 +150,7 @@ def set_custom_style():
         }
         
         .stTabs [aria-selected="true"] {
-            background: rgb(251, 251, 250);
+            background: rgba(55, 53, 47, 0.03);
             border-radius: 3px;
         }
         
@@ -134,6 +168,11 @@ def set_custom_style():
             margin-right: 6px;
         }
         
+        .status-green { background: rgb(68, 131, 97); }
+        .status-yellow { background: rgb(212, 167, 44); }
+        .status-orange { background: rgb(217, 115, 13); }
+        .status-red { background: rgb(212, 76, 71); }
+        
         /* Info boxes */
         .info-box {
             background: rgb(251, 251, 250);
@@ -150,7 +189,7 @@ def set_custom_style():
             margin: 2em 0;
         }
         
-        /* Header container */
+        /* Updated header container styling */
         .header-container {
             padding: 3rem 2rem 2rem 2rem;
             margin-bottom: 2rem;
@@ -158,7 +197,7 @@ def set_custom_style():
             border-bottom: 1px solid rgba(55, 53, 47, 0.09);
         }
         
-        /* Page title */
+        /* Title styling */
         .page-title {
             font-family: 'Inter', sans-serif;
             font-size: 2.5rem;
@@ -166,9 +205,10 @@ def set_custom_style():
             color: rgb(55, 53, 47);
             margin-bottom: 0.5rem;
             line-height: 1.2;
+            letter-spacing: -0.02em;
         }
         
-        /* Page subtitle */
+        /* Subtitle styling */
         .page-subtitle {
             font-family: 'Inter', sans-serif;
             font-size: 1.1rem;
@@ -177,19 +217,20 @@ def set_custom_style():
             line-height: 1.5;
         }
         
-        /* Content container */
+        /* Ensure proper content spacing */
         .content-container {
             padding: 0 2rem;
             max-width: 1200px;
             margin: 0 auto;
         }
         
-        /* Streamlit container adjustments */
+        /* Adjust streamlit default container */
         .block-container {
             padding-top: 0 !important;
             margin-top: 0 !important;
         }
         
+        /* Hide default streamlit padding */
         .css-1544g2n {
             padding-top: 0 !important;
         }
@@ -254,35 +295,37 @@ def analyze_cv_with_ai(cv_text: str, job_description: str) -> Dict:
     prompt = f"""
     You are an expert recruitment AI.
     Evaluate a candidate's CV against the provided job description to determine their suitability for the role. 
-    Provide a  clear interview recommendation based on evidence extracted from the CV.
+    Provide a clear interview recommendation based on evidence extracted from the CV.
     Focus on assessing qualifications, skills, and relevant experiences outlined in the CV as they relate to the job description. 
     Provide specific examples to support your assessment and final recommendation.
     Don't be afraid to reject candidates that you feel might not be suitable to perform the role.
 
-    You must follow these scoring guidelines:
-    - Suitability Score 80-100: Use "Strongly Recommend"
-    - Suitability Score 60-79: Use "Recommend"
-    - Suitability Score 40-59: Use "Consider"
-    - Suitability Score 0-39: Use "Do Not Recommend"
+    Provide your analysis in the following strict format:
 
-    Provide your analysis in the following format:
-
-    SUITABILITY_SCORE: [number between 0-100]
+    SUITABILITY_SCORE: [Score between 0-100, where:
+    - 80-100: Strong match with requirements, highly qualified
+    - 60-79: Good match, meets key requirements
+    - 40-59: Partial match, some gaps in requirements
+    - 0-39: Poor match, significant gaps or missing requirements]
     
     STRENGTHS:
-    - [strength 1]
-    - [strength 2]
-    - [strength 3]
+    - [Key strength 1 with specific evidence from CV]
+    - [Key strength 2 with specific evidence from CV]
+    - [Key strength 3 with specific evidence from CV]
     
     GAPS:
-    - [gap 1]
-    - [gap 2]
-    - [gap 3]
+    - [Gap 1 with explanation]
+    - [Gap 2 with explanation]
+    - [Gap 3 with explanation]
     
-    INTERVIEW_RECOMMENDATION: [Must match suitability score as per guidelines above]
+    RECOMMENDATION: [Must be one of:
+    - "Strongly Recommend" (for scores 80-100)
+    - "Recommend" (for scores 60-79)
+    - "Consider" (for scores 40-59)
+    - "Do Not Recommend" (for scores 0-39)]
     
-    DETAILED_RECOMMENDATION:
-    [2-3 sentence explanation of why you made this interview recommendation, including specific points from their CV]
+    DETAILED_ANALYSIS:
+    [Provide 2-3 sentences explaining the recommendation, citing specific evidence from the CV and how it relates to the job requirements]
 
     Here are the details to analyze:
 
@@ -327,23 +370,21 @@ def analyze_cv_with_ai(cv_text: str, job_description: str) -> Dict:
         strengths = []
         if strengths_section:
             strengths = [s.strip('- ').strip() for s in strengths_section.group(1).strip().split('\n') if s.strip('- ').strip()]
-        analysis['strengths'] = strengths[:3]  # Take up to 3 strengths
+        analysis['strengths'] = strengths[:3] if strengths else ["No clear strengths identified"]
         
         # Extract gaps
-        gaps_section = re.search(r'GAPS:(.*?)(?=INTERVIEW_RECOMMENDATION:|$)', response_text, re.DOTALL)
+        gaps_section = re.search(r'GAPS:(.*?)(?=RECOMMENDATION:|$)', response_text, re.DOTALL)
         gaps = []
         if gaps_section:
             gaps = [g.strip('- ').strip() for g in gaps_section.group(1).strip().split('\n') if g.strip('- ').strip()]
-        analysis['gaps'] = gaps[:3]  # Take up to 3 gaps
+        analysis['gaps'] = gaps[:3] if gaps else ["Unable to identify specific gaps"]
         
-        # Extract interview recommendation and ensure it matches the score
-        interview_rec_match = re.search(r'INTERVIEW_RECOMMENDATION:\s*(.*?)(?=\n|$)', response_text)
-        # Use the expected recommendation based on score
+        # Extract detailed analysis
+        detailed_section = re.search(r'DETAILED_ANALYSIS:(.*?)$', response_text, re.DOTALL)
+        analysis['detailed_recommendation'] = detailed_section.group(1).strip() if detailed_section else "No detailed analysis provided"
+        
+        # Force recommendation to match score
         analysis['interview_recommendation'] = expected_recommendation
-        
-        # Extract detailed recommendation
-        detailed_rec_section = re.search(r'DETAILED_RECOMMENDATION:(.*?)$', response_text, re.DOTALL)
-        analysis['detailed_recommendation'] = detailed_rec_section.group(1).strip() if detailed_rec_section else ""
         
         return analysis
         
@@ -351,10 +392,10 @@ def analyze_cv_with_ai(cv_text: str, job_description: str) -> Dict:
         st.error(f"Error in AI analysis: {str(e)}")
         return {
             "suitability_score": 0,
-            "strengths": ["AI analysis failed"],
-            "gaps": ["Unable to analyze"],
+            "strengths": ["Unable to analyze CV"],
+            "gaps": ["Unable to analyze CV"],
             "interview_recommendation": "Do Not Recommend",
-            "detailed_recommendation": f"Error in AI analysis: {str(e)}"
+            "detailed_recommendation": f"Error in analysis: {str(e)}"
         }
 
 def calculate_composite_score(keyword_match_percentage: float, ai_score: int) -> float:
@@ -479,9 +520,9 @@ def main():
     st.markdown("""
         <div class="header-container">
             <div class="content-container">
-                <div class="page-title">🌍 Aceli CV Analysis Tool</div>
+                <div class="page-title">📄 CV Analysis</div>
                 <div class="page-subtitle">
-                    AI-powered candidate assessment
+                    AI-powered CV evaluation system for efficient candidate assessment
                 </div>
             </div>
         </div>
