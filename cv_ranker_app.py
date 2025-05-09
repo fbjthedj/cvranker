@@ -8,7 +8,7 @@ import concurrent.futures
 import google.generativeai as genai
 from typing import Dict, List
 
-# Custom CSS for Notion-like styling
+# Custom CSS for light mode styling
 def set_custom_style():
     st.markdown("""
         <style>
@@ -61,12 +61,13 @@ def set_custom_style():
             padding: 10px;
             font-size: 16px;
             background: white;
+            color: #0f172a;
         }
         
         /* Buttons */
         .stButton > button {
             background-color: #A9DBB8 !important;
-            color: #FFFFFF !important;
+            color: #1a1a1a !important;
             border: none !important;
             border-radius: 4px !important;
             padding: 10px 20px !important;
@@ -75,17 +76,9 @@ def set_custom_style():
             cursor: pointer !important;
         }
         
-        /* Ensure button text stays white in all states */
         .stButton > button:hover {
-            color: #FFFFFF !important;
-        }
-        
-        .stButton > button:active {
-            color: #FFFFFF !important;
-        }
-        
-        .stButton > button:focus {
-            color: #FFFFFF !important;
+            color: #1a1a1a !important;
+            background-color: #98c9a7 !important;
         }
         
         /* File uploader */
@@ -94,6 +87,7 @@ def set_custom_style():
             border-radius: 6px;
             padding: 16px;
             background: white;
+            color: #1a1a1a;
         }
         
         /* Results cards */
@@ -103,12 +97,20 @@ def set_custom_style():
             padding: 20px;
             margin-bottom: 16px;
             background: white;
+            color: #1a1a1a;
         }
         
         /* Sidebar */
-        .css-1d391kg {
+        .css-1d391kg, .css-1cypcdb, [data-testid="stSidebar"] {
             background: #f8fafc;
             border-right: 1px solid #e2e8f0;
+        }
+        
+        /* Make sure all text in sidebar is visible */
+        [data-testid="stSidebar"] p, [data-testid="stSidebar"] h1, 
+        [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3,
+        [data-testid="stSidebar"] label {
+            color: #1a1a1a !important;
         }
         
         /* Tabs */
@@ -145,6 +147,7 @@ def set_custom_style():
             border-radius: 6px;
             padding: 16px;
             margin: 16px 0;
+            color: #1a1a1a;
         }
         
         /* Dividers */
@@ -238,17 +241,45 @@ def set_custom_style():
         .css-1n76uvr {
             width: 100% !important;
         }
+        
+        /* Force light mode for all Streamlit elements */
+        .st-emotion-cache-ue6h4q, .st-emotion-cache-ue6h4q *, 
+        .st-emotion-cache-16txtl3, .st-emotion-cache-16txtl3 *,
+        .st-emotion-cache-1wrcr25, .stApp, .stApp * {
+            color-scheme: light !important;
+        }
+        
+        /* Ensure all text inputs have dark text on light background */
+        input, textarea, .stTextInput input, .stTextArea textarea {
+            color: #1a1a1a !important;
+            background-color: white !important;
+        }
+        
+        /* Override any theme variables that might cause dark mode */
+        :root {
+            --background-color: white;
+            --text-color: #1a1a1a;
+            --secondary-background-color: #f8fafc;
+        }
         </style>
     """, unsafe_allow_html=True)
 
 def initialize_gemini(api_key: str) -> bool:
     """Initialize Gemini AI with the provided API key"""
     try:
+        # Configure the API key
         genai.configure(api_key=api_key)
+        
+        # Create a model instance
         model = genai.GenerativeModel('gemini-pro')
-        # Test the API key with a simple prompt
-        response = model.generate_content("Test")
-        return True
+        
+        # Test with a simple prompt
+        response = model.generate_content("Hello")
+        
+        # Check if response was successful
+        if response and hasattr(response, 'text'):
+            return True
+        return False
     except Exception as e:
         st.error(f"Error initializing Gemini AI: {str(e)}")
         return False
@@ -291,63 +322,63 @@ def analyze_cv_with_ai(cv_text: str, job_description: str) -> Dict:
     """
     Use Google Gemini to analyze CV suitability for the role
     """
-    model = genai.GenerativeModel('gemini-pro')
-    prompt = f"""
-    You are an expert recruitment AI. 
-    Your task is to assess a candidate's Curriculum Vitae (CV) against a provided job description to determine their suitability for the role.
-    Steps for Evaluation:
-    Job Description Analysis
-    Analyze the job description to identify and extract key qualifications (e.g., education, certifications), essential skills (technical and soft skills), and crucial experiences required for the role.
-    Prioritize these elements based on their importance for success in the position.
-    CV Assessment
-    Review the CV to identify qualifications, skills, and experiences that align with the job requirements.
-    Quantify accomplishments whenever possible, focusing on metrics, results, or specific impacts (e.g., "increased social media engagement by 20% within three months" instead of "managed social media").
-    Identify potential red flags, such as lack of required experience, career history inconsistencies, or skills gaps relative to the job description.
-    Comparative Analysis
-    Compare the job requirements with the CV findings to assess the candidate's suitability.
-    Evaluate the depth of experience by determining whether the candidate has demonstrated mastery of skills through relevant projects and achievements.
-    Evidence-Based Recommendation
-    Provide a clear recommendation on whether the candidate should proceed to an interview, supported by specific evidence from the CV.
-    If recommending an interview, highlight strengths and suggest areas to explore key skills further.
-    If rejecting the candidate, clearly explain the decision based on specific gaps in qualifications, skills, or experience critical to the role.
-
-    Provide your analysis in the following strict format:
-
-    SUITABILITY_SCORE: [Score between 0-100, where:
-    - 80-100: Strong match with requirements, highly qualified
-    - 60-79: Good match, meets key requirements
-    - 40-59: Partial match, some gaps in requirements
-    - 0-39: Poor match, significant gaps or missing requirements]
-    
-    STRENGTHS:
-    - [Key strength 1 with specific evidence from CV]
-    - [Key strength 2 with specific evidence from CV]
-    - [Key strength 3 with specific evidence from CV]
-    
-    GAPS:
-    - [Gap 1 with explanation]
-    - [Gap 2 with explanation]
-    - [Gap 3 with explanation]
-    
-    RECOMMENDATION: [Must be one of:
-    - "Strongly Recommend" (for scores 80-100)
-    - "Recommend" (for scores 60-79)
-    - "Consider" (for scores 40-59)
-    - "Do Not Recommend" (for scores 0-39)]
-    
-    DETAILED_ANALYSIS:
-    [Provide 2-3 sentences explaining the recommendation, citing specific evidence from the CV and how it relates to the job requirements]
-
-    Here are the details to analyze:
-
-    JOB DESCRIPTION:
-    {job_description}
-
-    CV CONTENT:
-    {cv_text}
-    """
-    
     try:
+        model = genai.GenerativeModel('gemini-pro')
+        prompt = f"""
+        You are an expert recruitment AI. 
+        Your task is to assess a candidate's Curriculum Vitae (CV) against a provided job description to determine their suitability for the role.
+        Steps for Evaluation:
+        Job Description Analysis
+        Analyze the job description to identify and extract key qualifications (e.g., education, certifications), essential skills (technical and soft skills), and crucial experiences required for the role.
+        Prioritize these elements based on their importance for success in the position.
+        CV Assessment
+        Review the CV to identify qualifications, skills, and experiences that align with the job requirements.
+        Quantify accomplishments whenever possible, focusing on metrics, results, or specific impacts (e.g., "increased social media engagement by 20% within three months" instead of "managed social media").
+        Identify potential red flags, such as lack of required experience, career history inconsistencies, or skills gaps relative to the job description.
+        Comparative Analysis
+        Compare the job requirements with the CV findings to assess the candidate's suitability.
+        Evaluate the depth of experience by determining whether the candidate has demonstrated mastery of skills through relevant projects and achievements.
+        Evidence-Based Recommendation
+        Provide a clear recommendation on whether the candidate should proceed to an interview, supported by specific evidence from the CV.
+        If recommending an interview, highlight strengths and suggest areas to explore key skills further.
+        If rejecting the candidate, clearly explain the decision based on specific gaps in qualifications, skills, or experience critical to the role.
+
+        Provide your analysis in the following strict format:
+
+        SUITABILITY_SCORE: [Score between 0-100, where:
+        - 80-100: Strong match with requirements, highly qualified
+        - 60-79: Good match, meets key requirements
+        - 40-59: Partial match, some gaps in requirements
+        - 0-39: Poor match, significant gaps or missing requirements]
+        
+        STRENGTHS:
+        - [Key strength 1 with specific evidence from CV]
+        - [Key strength 2 with specific evidence from CV]
+        - [Key strength 3 with specific evidence from CV]
+        
+        GAPS:
+        - [Gap 1 with explanation]
+        - [Gap 2 with explanation]
+        - [Gap 3 with explanation]
+        
+        RECOMMENDATION: [Must be one of:
+        - "Strongly Recommend" (for scores 80-100)
+        - "Recommend" (for scores 60-79)
+        - "Consider" (for scores 40-59)
+        - "Do Not Recommend" (for scores 0-39)]
+        
+        DETAILED_ANALYSIS:
+        [Provide 2-3 sentences explaining the recommendation, citing specific evidence from the CV and how it relates to the job requirements]
+
+        Here are the details to analyze:
+
+        JOB DESCRIPTION:
+        {job_description}
+
+        CV CONTENT:
+        {cv_text}
+        """
+        
         response = model.generate_content(prompt)
         response_text = response.text
         
@@ -525,6 +556,15 @@ def display_enhanced_results(results_df):
                 st.markdown("</div>", unsafe_allow_html=True)
 
 def main():
+    # Force light mode
+    st.set_page_config(
+        page_title="Aceli CV Analysis Tool",
+        page_icon="🌍",
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
+    
+    # Apply custom styling
     set_custom_style()
     
     # Updated header with proper sizing
@@ -538,6 +578,9 @@ def main():
             </div>
         </div>
     """, unsafe_allow_html=True)
+    
+    # Add debugging option for API connection
+    debug_mode = False
     
     # Sidebar with Notion-like styling
     with st.sidebar:
@@ -554,27 +597,46 @@ def main():
             placeholder="Paste your API key here..."
         )
         
+        # Add debug checkbox
+        debug_mode = st.checkbox("Debug Mode", value=False, help="Show detailed error messages")
+        
         if api_key:
-            if initialize_gemini(api_key):
+            api_connected = initialize_gemini(api_key)
+            if api_connected:
                 st.markdown("""
                     <div class="info-box" style="background: rgb(221, 237, 234);">
                         <p style="color: rgb(68, 131, 97);">✓ API Connected</p>
                     </div>
                 """, unsafe_allow_html=True)
             else:
-                st.markdown("""
+                error_msg = "Invalid API Key or connection issue"
+                if debug_mode:
+                    try:
+                        # Test with specific error handling
+                        genai.configure(api_key=api_key)
+                        model = genai.GenerativeModel('gemini-pro')
+                        test_response = model.generate_content("Test connection")
+                        error_msg = f"API responded but validation failed: {str(test_response)}"
+                    except Exception as e:
+                        error_msg = f"API Error: {str(e)}"
+                
+                st.markdown(f"""
                     <div class="info-box" style="background: rgb(253, 230, 230);">
-                        <p style="color: rgb(212, 76, 71);">✕ Invalid API Key</p>
+                        <p style="color: rgb(212, 76, 71);">✕ {error_msg}</p>
                     </div>
                 """, unsafe_allow_html=True)
-                st.stop()
+                
+                # If in debug mode, don't stop the application
+                if not debug_mode:
+                    st.stop()
         else:
             st.markdown("""
                 <div class="info-box" style="background: rgb(251, 251, 250);">
                     <p style="color: rgba(55, 53, 47, 0.65);">Please enter your API key to continue</p>
                 </div>
             """, unsafe_allow_html=True)
-            st.stop()
+            if not debug_mode:
+                st.stop()
     
     # Main content with Notion-like tabs
     tabs = st.tabs(["📝 Input", "🔍 Analysis", "ℹ️ Help"])
@@ -617,11 +679,15 @@ def main():
     
     with tabs[1]:
         if st.button("Start Analysis", type="primary"):
-            if not all([uploaded_files, job_description]):
+            if not all([uploaded_files, job_description]) and not debug_mode:
                 st.error("Please provide both job description and CVs")
                 return
             
             with st.spinner('Analyzing CVs with AI...'):
+                # Display more info in debug mode
+                if debug_mode and not api_key:
+                    st.warning("Running in debug mode without API key")
+                
                 results = []
                 progress_bar = st.progress(0)
                 
@@ -632,8 +698,16 @@ def main():
                         for file in uploaded_files
                     ]
                     for i, future in enumerate(concurrent.futures.as_completed(futures)):
-                        result = future.result()
-                        results.append(result)
+                        try:
+                            result = future.result()
+                            results.append(result)
+                        except Exception as e:
+                            if debug_mode:
+                                st.error(f"Error processing file: {str(e)}")
+                            results.append({
+                                "Filename": f"File {i+1}",
+                                "Error": str(e)
+                            })
                         progress_bar.progress((i + 1) / len(uploaded_files))
                 
                 # Create dataframe and display results
@@ -661,7 +735,26 @@ def main():
             
             <h3>About the Analysis</h3>
             <div class='info-box'>
-                <p>This tool uses AI to analyze CVs against the job description and provide interview recommendations.</p>
+                <p>This tool uses Google Gemini AI to analyze CVs against the job description and provide interview recommendations.</p>
+                <p>The AI scores candidates based on their match to the job requirements and provides specific strengths and areas to discuss during interviews.</p>
+            </div>
+            
+            <h3>Troubleshooting</h3>
+            <div class='info-box'>
+                <p><strong>API Key Issues:</strong></p>
+                <ul>
+                    <li>Ensure your Gemini API key is active and has proper permissions</li>
+                    <li>Check that you have billing enabled on your Google Cloud account</li>
+                    <li>Verify quotas and usage limits in your Google AI Studio dashboard</li>
+                    <li>Enable the debug mode in the sidebar for more detailed error messages</li>
+                </ul>
+                
+                <p><strong>PDF Processing Issues:</strong></p>
+                <ul>
+                    <li>Ensure PDFs are not password-protected</li>
+                    <li>Try with text-based PDFs rather than scanned documents</li>
+                    <li>Large files may take longer to process</li>
+                </ul>
             </div>
         """, unsafe_allow_html=True)
 
