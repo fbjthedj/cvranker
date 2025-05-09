@@ -270,10 +270,63 @@ def initialize_gemini(api_key: str) -> bool:
         # Configure the API key
         genai.configure(api_key=api_key)
         
-        # Create a model instance
-        model = genai.GenerativeModel('gemini-pro')
+        # Try to get available models first
+        available_models = []
+        try:
+            for m in genai.list_models():
+                if 'generateContent' in m.supported_generation_methods:
+                    available_models.append(m.name)
+        except:
+            # If list_models fails, we'll try some common model names
+            pass
+            
+        # Determine which model to use
+        model_name = None
         
-        # Test with a simple prompt
+        # Try different model name formats and versions
+        potential_models = [
+            'gemini-pro',
+            'models/gemini-pro',
+            'gemini-1.0-pro',
+            'models/gemini-1.0-pro',
+            'gemini-1.5-pro',
+            'models/gemini-1.5-pro',
+            'gemini-1.5-flash',
+            'models/gemini-1.5-flash'
+        ]
+        
+        # First check if any of our potential models are in the available models
+        for model in potential_models:
+            if available_models and model in available_models:
+                model_name = model
+                break
+                
+        # If we couldn't find a match in available models, try the potential models directly
+        if not model_name:
+            for potential_model in potential_models:
+                try:
+                    test_model = genai.GenerativeModel(potential_model)
+                    test_response = test_model.generate_content("Test")
+                    if test_response and hasattr(test_response, 'text'):
+                        model_name = potential_model
+                        break
+                except:
+                    continue
+        
+        # If we still don't have a model, try the first available model that supports generateContent
+        if not model_name and available_models:
+            model_name = available_models[0]
+            
+        # If we still don't have a model name, fail
+        if not model_name:
+            st.error("Could not find a compatible Gemini model. Please check your API key and quota.")
+            return False
+            
+        # Store the successful model name for later use
+        st.session_state.gemini_model_name = model_name
+        
+        # Final test with the selected model
+        model = genai.GenerativeModel(model_name)
         response = model.generate_content("Hello")
         
         # Check if response was successful
@@ -323,7 +376,42 @@ def analyze_cv_with_ai(cv_text: str, job_description: str) -> Dict:
     Use Google Gemini to analyze CV suitability for the role
     """
     try:
-        model = genai.GenerativeModel('gemini-pro')
+        # Use the successfully tested model name from session state
+        model_name = st.session_state.get('gemini_model_name', 'gemini-1.5-flash')
+        
+        # Create the model with safety settings to ensure response
+        generation_config = {
+            "temperature": 0.4,
+            "top_p": 0.95,
+            "top_k": 64,
+            "max_output_tokens": 8192,
+        }
+        
+        safety_settings = [
+            {
+                "category": "HARM_CATEGORY_HARASSMENT",
+                "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+            },
+            {
+                "category": "HARM_CATEGORY_HATE_SPEECH",
+                "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+            },
+            {
+                "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+            },
+            {
+                "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+            }
+        ]
+        
+        model = genai.GenerativeModel(
+            model_name=model_name,
+            generation_config=generation_config,
+            safety_settings=safety_settings
+        )
+        
         prompt = f"""
         You are an expert recruitment AI. 
         Your task is to assess a candidate's Curriculum Vitae (CV) against a provided job description to determine their suitability for the role.
@@ -556,6 +644,10 @@ def display_enhanced_results(results_df):
                 st.markdown("</div>", unsafe_allow_html=True)
 
 def main():
+    # Initialize session state if needed
+    if 'gemini_model_name' not in st.session_state:
+        st.session_state.gemini_model_name = 'gemini-1.5-flash'  # Default model
+    
     # Force light mode
     st.set_page_config(
         page_title="Aceli CV Analysis Tool",
@@ -600,12 +692,28 @@ def main():
         # Add debug checkbox
         debug_mode = st.checkbox("Debug Mode", value=False, help="Show detailed error messages")
         
+        # Add model selection option
+        st.markdown("<p>Advanced Settings:</p>", unsafe_allow_html=True)
+        model_options = [
+            "gemini-1.5-flash", 
+            "gemini-1.5-pro", 
+            "gemini-1.0-pro", 
+            "gemini-pro"
+        ]
+        selected_model = st.selectbox(
+            "Gemini Model",
+            options=model_options,
+            index=0,
+            help="Select which Gemini model to use (if auto-detection fails)"
+        )
+        st.session_state.gemini_model_name = selected_model
+        
         if api_key:
             api_connected = initialize_gemini(api_key)
             if api_connected:
-                st.markdown("""
+                st.markdown(f"""
                     <div class="info-box" style="background: rgb(221, 237, 234);">
-                        <p style="color: rgb(68, 131, 97);">✓ API Connected</p>
+                        <p style="color: rgb(68, 131, 97);">✓ API Connected using model: {st.session_state.gemini_model_name}</p>
                     </div>
                 """, unsafe_allow_html=True)
             else:
@@ -614,7 +722,8 @@ def main():
                     try:
                         # Test with specific error handling
                         genai.configure(api_key=api_key)
-                        model = genai.GenerativeModel('gemini-pro')
+                        # Try the manually selected model
+                        model = genai.GenerativeModel(selected_model)
                         test_response = model.generate_content("Test connection")
                         error_msg = f"API responded but validation failed: {str(test_response)}"
                     except Exception as e:
