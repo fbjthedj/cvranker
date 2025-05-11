@@ -354,11 +354,17 @@ def set_custom_style():
     """, unsafe_allow_html=True)
 
 def initialize_openai(api_key: str) -> bool:
-    """Initialize OpenAI with the provided API key"""
+    """Initialize OpenAI with the provided API key, only if changed."""
     try:
+        # Only re-initialize if the key is new
+        if (
+            'openai_client' in st.session_state and
+            'openai_api_key' in st.session_state and
+            st.session_state.openai_api_key == api_key
+        ):
+            return True  # Already initialized with this key
         # Configure the client
         client = openai.OpenAI(api_key=api_key)
-        
         # Test with a minimal request
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
@@ -368,13 +374,16 @@ def initialize_openai(api_key: str) -> bool:
             ],
             max_tokens=10
         )
-        
         # If we get here without exception, the API key is valid
-        # Store the client in session state for reuse
         st.session_state.openai_client = client
+        st.session_state.openai_api_key = api_key
+        st.session_state.openai_connected = True
+        st.session_state.openai_error = None
         return True
     except Exception as e:
-        st.error(f"Error initializing OpenAI: {str(e)}")
+        st.session_state.openai_client = None
+        st.session_state.openai_connected = False
+        st.session_state.openai_error = str(e)
         return False
 
 def extract_text_from_pdf(file):
@@ -416,45 +425,37 @@ def analyze_cv_with_openai(cv_text: str, job_description: str) -> Dict:
     Use OpenAI to analyze CV suitability for the role
     """
     try:
-        # Check if the OpenAI client is initialized
-        if 'openai_client' not in st.session_state:
-            st.error("OpenAI client not initialized. Please enter your API key in the sidebar and connect.")
+        # Check for OpenAI client
+        if 'openai_client' not in st.session_state or st.session_state.openai_client is None:
             return {
                 "suitability_score": 0,
                 "strengths": ["Unable to analyze CV - OpenAI client not initialized"],
-                "gaps": ["Unable to analyze CV - Please enter your API key and connect"],
+                "gaps": ["Please check your API key and connection."],
                 "interview_recommendation": "Do Not Recommend",
-                "detailed_recommendation": "OpenAI client not initialized. Please enter your API key in the sidebar and connect."
+                "detailed_recommendation": "OpenAI client is not initialized. Please enter a valid API key and connect."
             }
         client = st.session_state.openai_client
-        
         # Truncate inputs if needed to reduce token consumption
         if st.session_state.get('truncate_input', True):
             max_cv_length = 5000  # characters
             max_job_desc_length = 2000  # characters
-            
             if len(cv_text) > max_cv_length:
                 cv_text = cv_text[:max_cv_length] + "... [truncated to save tokens]"
-                
             if len(job_description) > max_job_desc_length:
                 job_description = job_description[:max_job_desc_length] + "... [truncated to save tokens]"
-        
         # Choose prompt based on simplify setting
         if st.session_state.get('simplify_prompt', True):
             prompt = f"""
             As a recruitment expert, assess this CV against the job requirements.
             Score the match from 0-100, and list key strengths and gaps.
-            
             Format your response as a JSON object with these keys:
             - suitability_score: number between 0-100
             - strengths: array of 3 strings
             - gaps: array of 3 strings
             - interview_recommendation: string, one of "Strongly Recommend" (80-100), "Recommend" (60-79), "Consider" (40-59), or "Do Not Recommend" (0-39)
             - detailed_recommendation: string explaining rationale in 2-3 sentences
-            
             JOB DESCRIPTION:
             {job_description}
-            
             CV:
             {cv_text}
             """
@@ -462,13 +463,11 @@ def analyze_cv_with_openai(cv_text: str, job_description: str) -> Dict:
             prompt = f"""
             You are an expert recruitment AI. 
             Your task is to assess a candidate's Curriculum Vitae (CV) against a provided job description to determine their suitability for the role.
-            
             Steps for Evaluation:
             1. Analyze the job description to identify key qualifications, skills, and experiences required
             2. Review the CV to identify matching qualifications, skills, and experiences
             3. Identify potential strengths and gaps
             4. Provide a clear recommendation based on the candidate's suitability
-            
             Format your response as a JSON object with these keys:
             - suitability_score: number between 0-100 where:
               * 80-100: Strong match with requirements, highly qualified
@@ -479,18 +478,12 @@ def analyze_cv_with_openai(cv_text: str, job_description: str) -> Dict:
             - gaps: array of 3 strings, each describing a gap with explanation
             - interview_recommendation: string, one of "Strongly Recommend" (80-100), "Recommend" (60-79), "Consider" (40-59), or "Do Not Recommend" (0-39)
             - detailed_recommendation: string explaining recommendation in 2-3 sentences with specific evidence
-            
             JOB DESCRIPTION:
             {job_description}
-            
             CV:
             {cv_text}
             """
-        
-        # Choose model based on settings
         model = st.session_state.get('selected_model', 'gpt-3.5-turbo')
-        
-        # Make the API request
         response = client.chat.completions.create(
             model=model,
             messages=[
@@ -500,26 +493,19 @@ def analyze_cv_with_openai(cv_text: str, job_description: str) -> Dict:
             temperature=0.2,
             response_format={"type": "json_object"}
         )
-        
-        # Parse the response
         response_text = response.choices[0].message.content
         analysis = json.loads(response_text)
-        
         # Ensure score is within range
         if 'suitability_score' in analysis:
             analysis['suitability_score'] = max(0, min(100, analysis['suitability_score']))
         else:
             analysis['suitability_score'] = 0
-        
         # Ensure we have all required keys with defaults
         if 'strengths' not in analysis or not analysis['strengths']:
             analysis['strengths'] = ["No clear strengths identified"]
-            
         if 'gaps' not in analysis or not analysis['gaps']:
             analysis['gaps'] = ["Unable to identify specific gaps"]
-            
         if 'interview_recommendation' not in analysis:
-            # Set recommendation based on score
             score = analysis['suitability_score']
             if score >= 80:
                 analysis['interview_recommendation'] = "Strongly Recommend"
@@ -529,25 +515,17 @@ def analyze_cv_with_openai(cv_text: str, job_description: str) -> Dict:
                 analysis['interview_recommendation'] = "Consider"
             else:
                 analysis['interview_recommendation'] = "Do Not Recommend"
-                
         if 'detailed_recommendation' not in analysis:
             analysis['detailed_recommendation'] = "No detailed analysis provided"
-            
-        # Limit to 3 strengths/gaps
         if len(analysis['strengths']) > 3:
             analysis['strengths'] = analysis['strengths'][:3]
-            
         if len(analysis['gaps']) > 3:
             analysis['gaps'] = analysis['gaps'][:3]
-        
         return analysis
-        
     except Exception as e:
         error_message = str(e)
         if "rate limit" in error_message.lower():
             error_message = "Rate limit exceeded. Please try again later or check your OpenAI plan."
-        
-        st.error(f"Error in OpenAI analysis: {error_message}")
         return {
             "suitability_score": 0,
             "strengths": ["Unable to analyze CV - API error"],
@@ -586,21 +564,26 @@ def get_recommendation_from_score(composite_score: float) -> str:
 def process_cv(file, job_description):
     """Process individual CV file"""
     try:
-        # Only allow PDF files
-        if file.name.lower().endswith('.pdf'):
+        # Extract text from PDF
+        try:
             text = extract_text_from_pdf(file)
-        else:
+        except Exception as e:
             return {
-                "Filename": file.name,
-                "Error": "Unsupported file type. Only PDF is supported."
+                "Filename": getattr(file, 'name', 'Unknown'),
+                "Error": f"PDF extraction error: {str(e)}"
             }
         # Check if we need to truncate the CV text to save tokens
         if st.session_state.get('truncate_input', True) and len(text) > 5000:
             text = text[:5000] + "... [truncated to save tokens]"
         # Get AI analysis
         ai_analysis = analyze_cv_with_openai(text, job_description)
+        if 'Error' in ai_analysis:
+            return {
+                "Filename": getattr(file, 'name', 'Unknown'),
+                "Error": ai_analysis['Error']
+            }
         return {
-            "Filename": file.name,
+            "Filename": getattr(file, 'name', 'Unknown'),
             "AI Score": ai_analysis["suitability_score"],
             "Recommendation": ai_analysis["interview_recommendation"],
             "Key Strengths": ai_analysis["strengths"],
@@ -612,7 +595,7 @@ def process_cv(file, job_description):
         if "rate limit" in error_message.lower():
             error_message = "Rate limit exceeded. Try processing fewer CVs or waiting."
         return {
-            "Filename": file.name,
+            "Filename": getattr(file, 'name', 'Unknown'),
             "Error": error_message
         }
 
@@ -686,25 +669,25 @@ def main():
     # Initialize session state
     if 'selected_model' not in st.session_state:
         st.session_state.selected_model = 'gpt-3.5-turbo'
-    
+    if 'openai_connected' not in st.session_state:
+        st.session_state.openai_connected = False
+    if 'openai_error' not in st.session_state:
+        st.session_state.openai_error = None
+    if 'openai_api_key' not in st.session_state:
+        st.session_state.openai_api_key = ''
     # Force light mode
     st.set_page_config(
         page_title="Aceli CV Analysis Tool",
         page_icon="🌍",
         layout="wide",
         initial_sidebar_state="expanded",
-        # Force light theme
         menu_items={
             'Get Help': None,
             'Report a bug': None,
             'About': None
         }
     )
-    
-    # Apply custom styling - ensure this is called
     set_custom_style()
-    
-    # Updated header with proper sizing
     st.markdown("""
         <div class="header-container">
             <div class="content-container">
@@ -715,78 +698,59 @@ def main():
             </div>
         </div>
     """, unsafe_allow_html=True)
-    
-    # Sidebar with Notion-like styling
     with st.sidebar:
         st.markdown("""
             <div style="margin-bottom: 20px;">
                 <h3 style="color: #1a1a1a !important;">⚙️ Settings</h3>
             </div>
         """, unsafe_allow_html=True)
-        
-        # Add OpenAI API key input
         api_key = st.text_input(
             "OpenAI API Key",
             type="password",
             help="Enter your OpenAI API key",
-            placeholder="Paste your API key here..."
+            placeholder="Paste your API key here...",
+            value=st.session_state.openai_api_key
         )
-        
-        # Add debug checkbox
         debug_mode = st.checkbox("Debug Mode", value=False, help="Show detailed error messages")
-        
-        # Add model selection options
         st.markdown("<p style='color: #1a1a1a !important;'>Model Selection:</p>", unsafe_allow_html=True)
         model_options = [
-            "gpt-3.5-turbo",      # Faster and cheaper
-            "gpt-4",              # More capable but more expensive
-            "gpt-4-turbo",        # Enhanced version
+            "gpt-3.5-turbo",
+            "gpt-4",
+            "gpt-4-turbo",
         ]
-        
         selected_model = st.selectbox(
             "OpenAI Model",
             options=model_options,
-            index=0,  # Default to gpt-3.5-turbo
+            index=model_options.index(st.session_state.selected_model) if st.session_state.selected_model in model_options else 0,
             help="Select a model (gpt-3.5-turbo is faster and cheaper)"
         )
-        
-        # Store selected model in session state
         st.session_state.selected_model = selected_model
-        
-        # Add token management options
         st.markdown("<p style='color: #1a1a1a !important;'>Token Management:</p>", unsafe_allow_html=True)
         col1, col2 = st.columns(2)
         with col1:
-            truncate_input = st.checkbox("Truncate Inputs", value=True, 
-                                       help="Reduce input length to save tokens")
+            truncate_input = st.checkbox("Truncate Inputs", value=st.session_state.get('truncate_input', True), help="Reduce input length to save tokens")
         with col2:
-            simplify_prompt = st.checkbox("Simplify Prompts", value=True,
-                                        help="Use simpler prompts that use fewer tokens")
-            
-        # Store settings in session state
+            simplify_prompt = st.checkbox("Simplify Prompts", value=st.session_state.get('simplify_prompt', True), help="Use simpler prompts that use fewer tokens")
         st.session_state.truncate_input = truncate_input
         st.session_state.simplify_prompt = simplify_prompt
-        
+        # Only try to connect if API key is provided and changed
         if api_key:
-            if 'openai_client' not in st.session_state or not hasattr(st.session_state.openai_client, 'chat'):
+            if api_key != st.session_state.openai_api_key or not st.session_state.openai_connected:
                 with st.spinner('Connecting to OpenAI API...'):
                     api_connected = initialize_openai(api_key)
             else:
-                api_connected = True
+                api_connected = st.session_state.openai_connected
             if api_connected:
                 st.markdown(f"""
                     <div class="info-box" style="background: rgb(221, 237, 234);">
                         <p style="color: rgb(68, 131, 97);">✓ API Connected using model: {st.session_state.selected_model}</p>
                     </div>
                 """, unsafe_allow_html=True)
-                    
-                # Show cost information
                 model_costs = {
                     "gpt-3.5-turbo": "$0.0015 / 1K input tokens, $0.002 / 1K output tokens",
                     "gpt-4": "$0.03 / 1K input tokens, $0.06 / 1K output tokens",
                     "gpt-4-turbo": "$0.01 / 1K input tokens, $0.03 / 1K output tokens"
                 }
-                
                 st.markdown(f"""
                     <div class="info-box" style="background: rgb(255, 249, 219);">
                         <p style="color: rgb(151, 90, 22);"><strong>Cost Information:</strong></p>
@@ -796,27 +760,11 @@ def main():
                     </div>
                 """, unsafe_allow_html=True)
             else:
-                error_msg = "Invalid API Key or connection issue"
+                error_msg = st.session_state.openai_error or "Invalid API Key or connection issue"
                 if debug_mode:
-                    try:
-                        client = openai.OpenAI(api_key=api_key)
-                        response = client.chat.completions.create(
-                            model=selected_model,
-                            messages=[{"role": "user", "content": "Test"}],
-                            max_tokens=5
-                        )
-                        error_msg = f"API responded but validation failed: {str(response)}"
-                    except Exception as e:
-                        error_msg = f"API Error: {str(e)}"
-                
-                st.markdown(f"""
-                    <div class="info-box" style="background: rgb(253, 230, 230);">
-                        <p style="color: rgb(212, 76, 71);">✕ {error_msg}</p>
-                    </div>
-                """, unsafe_allow_html=True)
-                
-                # If in debug mode, don't stop the application
-                if not debug_mode:
+                    st.markdown(f"<div class=\"info-box\" style=\"background: rgb(253, 230, 230);\"><p style=\"color: rgb(212, 76, 71);\">✕ {error_msg}</p></div>", unsafe_allow_html=True)
+                else:
+                    st.markdown(f"<div class=\"info-box\" style=\"background: rgb(253, 230, 230);\"><p style=\"color: rgb(212, 76, 71);\">✕ {error_msg}</p></div>", unsafe_allow_html=True)
                     st.stop()
         else:
             st.markdown("""
@@ -824,12 +772,8 @@ def main():
                     <p style="color: #1a1a1a;">Please enter your OpenAI API key to continue</p>
                 </div>
             """, unsafe_allow_html=True)
-            if not debug_mode:
-                st.stop()
-    
-    # Main content with Notion-like tabs
+            st.stop()
     tabs = st.tabs(["📝 Input", "🔍 Analysis", "ℹ️ Help"])
-    
     with tabs[0]:
         st.markdown("""
             <div class="block-container">
@@ -837,65 +781,52 @@ def main():
                 <p style="color: #475569 !important;">Enter the complete job description below</p>
             </div>
         """, unsafe_allow_html=True)
-        
         job_description = st.text_area(
             "",
             height=200,
             placeholder="Type or paste job description here..."
         )
-        
         st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
-        
         st.markdown("""
             <div class="block-container">
                 <h2 style="color: #1a1a1a !important;">Upload CVs</h2>
                 <p style="color: #475569 !important;">Select PDF files to analyze</p>
             </div>
         """, unsafe_allow_html=True)
-        
         uploaded_files = st.file_uploader(
             "",
             accept_multiple_files=True,
-            type=['pdf']  # Only PDF support
+            type=['pdf']
         )
-        
         if uploaded_files:
             st.markdown(f"""
                 <div class="info-box">
                     <p style="color: #1a1a1a !important;">📎 {len(uploaded_files)} files ready for analysis</p>
                 </div>
             """, unsafe_allow_html=True)
-    
     with tabs[1]:
-        if st.button("Start Analysis", type="primary"):
-            if not uploaded_files or not job_description:
-                st.error("Please provide both job description and CVs")
-                return
-            
-            # Show warning about token usage if multiple files are uploaded
-            if uploaded_files and len(uploaded_files) > 2:
-                st.warning(f"⚠️ You're analyzing {len(uploaded_files)} CVs, which may increase your OpenAI API costs. Consider analyzing fewer CVs at once.")
-            
-            with st.spinner('Analyzing CVs with AI...'):
-                # Display more info in debug mode
-                if debug_mode and not api_key:
-                    st.warning("Running in debug mode without API key")
-                
-                results = []
-                progress_bar = st.progress(0)
-                
-                # Process CVs with concurrent execution, but limit concurrency to be gentle on the API
-                max_workers = min(2, len(uploaded_files)) if uploaded_files else 1
-                
-                # Process in small batches to be more user-friendly
-                if uploaded_files:
-                    # Process in small batches with delays between batches
+        # Only enable button if all requirements are met
+        can_analyze = (
+            st.session_state.openai_connected and
+            uploaded_files and
+            job_description and
+            isinstance(uploaded_files, list) and
+            len(uploaded_files) > 0 and
+            isinstance(job_description, str) and
+            len(job_description.strip()) > 0
+        )
+        if not can_analyze:
+            st.button("Start Analysis", type="primary", disabled=True, help="Please provide API key, job description, and at least one CV PDF.")
+        else:
+            if st.button("Start Analysis", type="primary"):
+                with st.spinner('Analyzing CVs with AI...'):
+                    results = []
+                    progress_bar = st.progress(0)
+                    max_workers = min(2, len(uploaded_files)) if uploaded_files else 1
                     files_to_process = uploaded_files.copy()
-                    batch_size = 2  # Process two files at a time
-                    
+                    batch_size = 2
                     for i in range(0, len(files_to_process), batch_size):
                         batch = files_to_process[i:i+batch_size]
-                        
                         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                             futures = [
                                 executor.submit(process_cv, file, job_description) 
@@ -912,32 +843,20 @@ def main():
                                         "Filename": f"File {i+j+1}",
                                         "Error": str(e)
                                     })
-                                
-                                # Update progress
                                 progress = (i + j + 1) / len(files_to_process)
                                 progress_bar.progress(progress)
-                        
-                        # Add delay between batches to avoid rate limits
                         if i + batch_size < len(files_to_process):
                             with st.spinner(f'Processed {i+batch_size}/{len(files_to_process)} CVs. Please wait...'):
-                                time.sleep(1)  # Small delay between batches
-                
-                # Display completion message
-                st.success("✅ Analysis complete!")
-                
-                # Create dataframe and display results
-                df = pd.DataFrame([r for r in results if "Error" not in r])
-                
-                if not df.empty:
-                    display_enhanced_results(df)
-                
-                # Display any errors
-                errors = [r for r in results if "Error" in r]
-                if errors:
-                    st.error("Errors occurred while processing some files:")
-                    for error in errors:
-                        st.error(f"{error['Filename']}: {error['Error']}")
-    
+                                time.sleep(1)
+                    st.success("✅ Analysis complete!")
+                    df = pd.DataFrame([r for r in results if "Error" not in r])
+                    if not df.empty:
+                        display_enhanced_results(df)
+                    errors = [r for r in results if "Error" in r]
+                    if errors:
+                        st.error("Errors occurred while processing some files:")
+                        for error in errors:
+                            st.error(f"{error['Filename']}: {error['Error']}")
     with tabs[2]:
         st.markdown("""
             <h3 style="color: #1a1a1a !important;">How to Use This Tool</h3>
@@ -949,13 +868,11 @@ def main():
                     <li>Click "Start Analysis" to begin</li>
                 </ol>
             </div>
-            
             <h3 style="color: #1a1a1a !important;">About the Analysis</h3>
             <div class='info-box'>
                 <p>This tool uses OpenAI's language models to analyze CVs against the job description and provide interview recommendations.</p>
                 <p>The analysis includes a suitability score, key strengths and potential gaps, and a detailed recommendation.</p>
             </div>
-            
             <h3 style="color: #1a1a1a !important;">API Key Information</h3>
             <div class='info-box'>
                 <p><strong>OpenAI API Keys:</strong></p>
@@ -966,7 +883,6 @@ def main():
                     <li>Your API key is not stored and is only used for this session</li>
                 </ol>
             </div>
-            
             <h3 style="color: #1a1a1a !important;">Troubleshooting</h3>
             <div class='info-box'>
                 <p><strong>API Key Issues:</strong></p>
@@ -976,7 +892,6 @@ def main():
                     <li>If you hit rate limits, try selecting a different model or processing fewer CVs</li>
                     <li>Enable the debug mode in the sidebar for more detailed error messages</li>
                 </ul>
-                
                 <p><strong>PDF Processing Issues:</strong></p>
                 <ul>
                     <li>Ensure PDFs are not password-protected</li>
@@ -985,6 +900,5 @@ def main():
                 </ul>
             </div>
         """, unsafe_allow_html=True)
-
 if __name__ == "__main__":
     main()
