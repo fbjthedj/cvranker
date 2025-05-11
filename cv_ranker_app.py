@@ -577,16 +577,19 @@ def get_recommendation_from_score(composite_score: float) -> str:
 def process_cv(file, job_description):
     """Process individual CV file"""
     try:
-        # Extract text from PDF
-        text = extract_text_from_pdf(file)
-        
+        # Only allow PDF files
+        if file.name.lower().endswith('.pdf'):
+            text = extract_text_from_pdf(file)
+        else:
+            return {
+                "Filename": file.name,
+                "Error": "Unsupported file type. Only PDF is supported."
+            }
         # Check if we need to truncate the CV text to save tokens
         if st.session_state.get('truncate_input', True) and len(text) > 5000:
             text = text[:5000] + "... [truncated to save tokens]"
-            
         # Get AI analysis
         ai_analysis = analyze_cv_with_openai(text, job_description)
-        
         return {
             "Filename": file.name,
             "AI Score": ai_analysis["suitability_score"],
@@ -599,7 +602,6 @@ def process_cv(file, job_description):
         error_message = str(e)
         if "rate limit" in error_message.lower():
             error_message = "Rate limit exceeded. Try processing fewer CVs or waiting."
-        
         return {
             "Filename": file.name,
             "Error": error_message
@@ -757,54 +759,56 @@ def main():
         st.session_state.simplify_prompt = simplify_prompt
         
         if api_key:
-            with st.spinner('Connecting to OpenAI API...'):
-                api_connected = initialize_openai(api_key)
-                if api_connected:
-                    st.markdown(f"""
-                        <div class="info-box" style="background: rgb(221, 237, 234);">
-                            <p style="color: rgb(68, 131, 97);">✓ API Connected using model: {st.session_state.selected_model}</p>
-                        </div>
-                    """, unsafe_allow_html=True)
+            if 'openai_client' not in st.session_state or not hasattr(st.session_state.openai_client, 'chat'):
+                with st.spinner('Connecting to OpenAI API...'):
+                    api_connected = initialize_openai(api_key)
+            else:
+                api_connected = True
+            if api_connected:
+                st.markdown(f"""
+                    <div class="info-box" style="background: rgb(221, 237, 234);">
+                        <p style="color: rgb(68, 131, 97);">✓ API Connected using model: {st.session_state.selected_model}</p>
+                    </div>
+                """, unsafe_allow_html=True)
                     
-                    # Show cost information
-                    model_costs = {
-                        "gpt-3.5-turbo": "$0.0015 / 1K input tokens, $0.002 / 1K output tokens",
-                        "gpt-4": "$0.03 / 1K input tokens, $0.06 / 1K output tokens",
-                        "gpt-4-turbo": "$0.01 / 1K input tokens, $0.03 / 1K output tokens"
-                    }
-                    
-                    st.markdown(f"""
-                        <div class="info-box" style="background: rgb(255, 249, 219);">
-                            <p style="color: rgb(151, 90, 22);"><strong>Cost Information:</strong></p>
-                            <p style="color: rgb(151, 90, 22); font-size: 14px;">Current model: {st.session_state.selected_model}</p>
-                            <p style="color: rgb(151, 90, 22); font-size: 14px;">Pricing: {model_costs.get(st.session_state.selected_model, "Price varies")}</p>
-                            <p style="color: rgb(151, 90, 22); font-size: 14px;">Analyze fewer CVs at once to control costs</p>
-                        </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    error_msg = "Invalid API Key or connection issue"
-                    if debug_mode:
-                        try:
-                            # Test with specific error handling
-                            client = openai.OpenAI(api_key=api_key)
-                            response = client.chat.completions.create(
-                                model=selected_model,
-                                messages=[{"role": "user", "content": "Test"}],
-                                max_tokens=5
-                            )
-                            error_msg = f"API responded but validation failed: {str(response)}"
-                        except Exception as e:
-                            error_msg = f"API Error: {str(e)}"
-                    
-                    st.markdown(f"""
-                        <div class="info-box" style="background: rgb(253, 230, 230);">
-                            <p style="color: rgb(212, 76, 71);">✕ {error_msg}</p>
-                        </div>
-                    """, unsafe_allow_html=True)
-                    
-                    # If in debug mode, don't stop the application
-                    if not debug_mode:
-                        st.stop()
+                # Show cost information
+                model_costs = {
+                    "gpt-3.5-turbo": "$0.0015 / 1K input tokens, $0.002 / 1K output tokens",
+                    "gpt-4": "$0.03 / 1K input tokens, $0.06 / 1K output tokens",
+                    "gpt-4-turbo": "$0.01 / 1K input tokens, $0.03 / 1K output tokens"
+                }
+                
+                st.markdown(f"""
+                    <div class="info-box" style="background: rgb(255, 249, 219);">
+                        <p style="color: rgb(151, 90, 22);"><strong>Cost Information:</strong></p>
+                        <p style="color: rgb(151, 90, 22); font-size: 14px;">Current model: {st.session_state.selected_model}</p>
+                        <p style="color: rgb(151, 90, 22); font-size: 14px;">Pricing: {model_costs.get(st.session_state.selected_model, "Price varies")}</p>
+                        <p style="color: rgb(151, 90, 22); font-size: 14px;">Analyze fewer CVs at once to control costs</p>
+                    </div>
+                """, unsafe_allow_html=True)
+            else:
+                error_msg = "Invalid API Key or connection issue"
+                if debug_mode:
+                    try:
+                        client = openai.OpenAI(api_key=api_key)
+                        response = client.chat.completions.create(
+                            model=selected_model,
+                            messages=[{"role": "user", "content": "Test"}],
+                            max_tokens=5
+                        )
+                        error_msg = f"API responded but validation failed: {str(response)}"
+                    except Exception as e:
+                        error_msg = f"API Error: {str(e)}"
+                
+                st.markdown(f"""
+                    <div class="info-box" style="background: rgb(253, 230, 230);">
+                        <p style="color: rgb(212, 76, 71);">✕ {error_msg}</p>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                # If in debug mode, don't stop the application
+                if not debug_mode:
+                    st.stop()
         else:
             st.markdown("""
                 <div class="info-box" style="background: rgb(251, 251, 250);">
@@ -843,7 +847,7 @@ def main():
         uploaded_files = st.file_uploader(
             "",
             accept_multiple_files=True,
-            type=['pdf']
+            type=['pdf']  # Only PDF support
         )
         
         if uploaded_files:
@@ -855,7 +859,7 @@ def main():
     
     with tabs[1]:
         if st.button("Start Analysis", type="primary"):
-            if not all([uploaded_files, job_description]) and not debug_mode:
+            if not uploaded_files or not job_description:
                 st.error("Please provide both job description and CVs")
                 return
             
