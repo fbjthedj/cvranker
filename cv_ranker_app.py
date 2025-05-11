@@ -416,7 +416,16 @@ def analyze_cv_with_openai(cv_text: str, job_description: str) -> Dict:
     Use OpenAI to analyze CV suitability for the role
     """
     try:
-        # Get the OpenAI client from session state
+        # Check if the OpenAI client is initialized
+        if 'openai_client' not in st.session_state:
+            st.error("OpenAI client not initialized. Please enter your API key in the sidebar and connect.")
+            return {
+                "suitability_score": 0,
+                "strengths": ["Unable to analyze CV - OpenAI client not initialized"],
+                "gaps": ["Unable to analyze CV - Please enter your API key and connect"],
+                "interview_recommendation": "Do Not Recommend",
+                "detailed_recommendation": "OpenAI client not initialized. Please enter your API key in the sidebar and connect."
+            }
         client = st.session_state.openai_client
         
         # Truncate inputs if needed to reduce token consumption
